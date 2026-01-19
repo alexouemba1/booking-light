@@ -10,7 +10,8 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-const stripe = new Stripe(STRIPE_SECRET_KEY ?? "", { apiVersion: "2024-06-20" });
+const stripe = new Stripe(STRIPE_SECRET_KEY ?? "");
+
 
 const PLATFORM_FEE_PCT = 0.14;
 
