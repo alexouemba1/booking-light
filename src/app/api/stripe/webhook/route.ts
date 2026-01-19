@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,8 @@ function buildAutoMessage() {
 
 // ✅ Create auto-message uniquement si aucune conversation pour ce booking
 async function maybeCreateAutoMessage(params: {
-  admin: ReturnType<typeof createClient>;
+  admin: SupabaseClient<any, any, any>;
+
   bookingId: string;
   renterId: string;
   hostId: string;
