@@ -282,9 +282,10 @@ export async function POST(req: Request) {
             .maybeSingle();
 
           const hostId = listing?.user_id ? String(listing.user_id) : "";
-          if (hostId) {
-            await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
-          }
+          if (hostId && bookingId) {
+          await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
+        }
+
         }
       } catch (e: any) {
         console.warn("[webhook] auto-message warn:", e?.message);
