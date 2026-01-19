@@ -56,14 +56,17 @@ async function maybeCreateAutoMessage(params: {
   const nowIso = new Date().toISOString();
 
   // Message envoyé par le renter -> lu côté renter, non lu côté host
-  const { error: insErr } = await admin.from("messages").insert({
-    booking_id: bookingId,
-    sender_id: renterId,
-    receiver_id: hostId,
-    body: buildAutoMessage(),
-    read_by_renter_at: nowIso,
-    read_by_host_at: null,
-  });
+  const payload = {
+  booking_id: bookingId,
+  sender_id: renterId,
+  receiver_id: hostId,
+  body: buildAutoMessage(),
+  read_by_renter_at: nowIso,
+  read_by_host_at: null,
+} as any;
+
+const { error: insErr } = await admin.from("messages").insert([payload] as any);
+
 
   if (insErr) {
     console.warn("[webhook] auto-message insert failed:", insErr.message);
