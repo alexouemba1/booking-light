@@ -22,18 +22,21 @@ export default function AuthPage() {
   }, [email, password]);
 
   useEffect(() => {
-    // ✅ Capture locale + garde-fou (TypeScript friendly)
-    const sb = supabase;
-    if (!sb) return;
-
     async function init() {
-      const { data } = await sb.auth.getSession();
+      // ✅ garde-fou LOCAL (TypeScript ne discutera plus)
+      if (!supabase) return;
+
+      const { data } = await supabase.auth.getSession();
       const em = data.session?.user?.email ?? null;
       setUserEmail(em);
     }
+
     init();
 
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+    // ✅ si supabase est null, on ne s'abonne pas
+    if (!supabase) return;
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const em = session?.user?.email ?? null;
       setUserEmail(em);
     });
