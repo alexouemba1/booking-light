@@ -22,6 +22,9 @@ export default function AuthPage() {
   }, [email, password]);
 
   useEffect(() => {
+    // ✅ Garde-fou: si Supabase n'est pas initialisé (build/prerender), on ne fait rien.
+    if (!supabase) return;
+
     async function init() {
       const { data } = await supabase.auth.getSession();
       const em = data.session?.user?.email ?? null;
@@ -46,6 +49,10 @@ export default function AuthPage() {
     setErrorMsg(null);
 
     try {
+      if (!supabase) {
+        throw new Error("Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      }
+
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -66,9 +73,19 @@ export default function AuthPage() {
     setLoading(true);
     setMessage(null);
     setErrorMsg(null);
-    const { error } = await supabase.auth.signOut();
-    if (error) setErrorMsg(error.message);
-    setLoading(false);
+
+    try {
+      if (!supabase) {
+        throw new Error("Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      }
+
+      const { error } = await supabase.auth.signOut();
+      if (error) setErrorMsg(error.message);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Styles cohérents
@@ -222,9 +239,7 @@ export default function AuthPage() {
       <section style={hero}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>
-              Accède à ton espace.
-            </div>
+            <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Accède à ton espace.</div>
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
               Connexion pour publier, gérer tes annonces et suivre tes réservations.
             </div>
