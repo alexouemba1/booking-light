@@ -11,7 +11,19 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const stripe = new Stripe(STRIPE_SECRET_KEY ?? "");
+// ✅ Lazy init Stripe (évite crash build si STRIPE_SECRET_KEY absente au chargement)
+let stripeSingleton: Stripe | null = null;
+
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("Config manquante: STRIPE_SECRET_KEY");
+  }
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(key);
+  }
+  return stripeSingleton;
+}
 
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -92,6 +104,15 @@ export async function POST(req: Request) {
       { error: "Config manquante (STRIPE_WEBHOOK_SECRET / SUPABASE_URL / SERVICE_ROLE)." },
       500
     );
+  }
+
+  // ✅ Instancier Stripe ici (lazy)
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch (e: any) {
+    console.error("[webhook] Stripe init failed:", e?.message);
+    return j({ error: e?.message ?? "Stripe init failed" }, 500);
   }
 
   // 1) Signature
@@ -232,7 +253,12 @@ export async function POST(req: Request) {
       }
 
       bookingId = b2.id;
-      console.log("[webhook] bookingId trouvé via session.id:", bookingId, "status actuel:", b2.status);
+      console.log(
+        "[webhook] bookingId trouvé via session.id:",
+        bookingId,
+        "status actuel:",
+        b2.status
+      );
     }
 
     // B) Charger booking (avec renter_id + listing_id pour auto-message)
