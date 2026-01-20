@@ -22,17 +22,18 @@ export default function AuthPage() {
   }, [email, password]);
 
   useEffect(() => {
-    // ✅ Garde-fou: si Supabase n'est pas initialisé (build/prerender), on ne fait rien.
-    if (!supabase) return;
+    // ✅ Capture locale + garde-fou (TypeScript friendly)
+    const sb = supabase;
+    if (!sb) return;
 
     async function init() {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await sb.auth.getSession();
       const em = data.session?.user?.email ?? null;
       setUserEmail(em);
     }
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
       const em = session?.user?.email ?? null;
       setUserEmail(em);
     });
@@ -50,7 +51,9 @@ export default function AuthPage() {
 
     try {
       if (!supabase) {
-        throw new Error("Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        throw new Error(
+          "Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY."
+        );
       }
 
       if (mode === "login") {
@@ -76,7 +79,9 @@ export default function AuthPage() {
 
     try {
       if (!supabase) {
-        throw new Error("Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        throw new Error(
+          "Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY."
+        );
       }
 
       const { error } = await supabase.auth.signOut();
