@@ -26,6 +26,12 @@ function formatDateTimeFR(iso: string | null) {
   }).format(d);
 }
 
+function getErrorMessage(e: unknown) {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return "Erreur";
+}
+
 export default function MessagesInboxPage() {
   const router = useRouter();
 
@@ -37,7 +43,8 @@ export default function MessagesInboxPage() {
   const [uid, setUid] = useState<string | null>(null);
 
   // Debounce anti spam (Realtime peut pousser plusieurs events)
-  const refreshTimer = useRef<any>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function scheduleRefresh(fn: () => void, delayMs = 350) {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     refreshTimer.current = setTimeout(fn, delayMs);
@@ -72,12 +79,20 @@ export default function MessagesInboxPage() {
         return;
       }
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? "Erreur inbox");
+      const json: unknown = await res.json();
+      if (!res.ok) {
+        const msg =
+          typeof json === "object" && json && "error" in json
+            ? String((json as { error?: unknown }).error ?? "Erreur inbox")
+            : "Erreur inbox";
+        throw new Error(msg);
+      }
 
-      setItems((json.items || []) as InboxItem[]);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur");
+      const itemsValue =
+        typeof json === "object" && json && "items" in json ? (json as { items?: unknown }).items : [];
+      setItems((itemsValue || []) as InboxItem[]);
+    } catch (e: unknown) {
+      setErrorMsg(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -92,6 +107,7 @@ export default function MessagesInboxPage() {
       if (!alive) return;
       setChecking(false);
     })();
+
     return () => {
       alive = false;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -111,7 +127,6 @@ export default function MessagesInboxPage() {
           event: "*",
           schema: "public",
           table: "messages",
-          // Messages qui me concernent en réception
           filter: `receiver_id=eq.${uid}`,
         },
         () => scheduleRefresh(load)
@@ -122,7 +137,6 @@ export default function MessagesInboxPage() {
           event: "*",
           schema: "public",
           table: "messages",
-          // Messages que j’envoie (impacte last_message, etc.)
           filter: `sender_id=eq.${uid}`,
         },
         () => scheduleRefresh(load)

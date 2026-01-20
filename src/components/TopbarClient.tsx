@@ -10,10 +10,23 @@ type InboxItem = {
   unread_count: number;
 };
 
+type InboxApiResponse = {
+  items?: InboxItem[];
+  error?: string;
+};
+
 function sumUnread(items: InboxItem[]) {
   let n = 0;
   for (const it of items) n += Number(it.unread_count || 0);
   return n;
+}
+
+function parseJsonSafe(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export default function TopbarClient() {
@@ -27,7 +40,7 @@ export default function TopbarClient() {
   const [unreadTotal, setUnreadTotal] = useState<number>(0);
 
   // anti-spam refresh
-  const refreshTimer = useRef<any>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // anti-concurrence (évite 2 fetch inbox en même temps)
   const inFlightRef = useRef(false);
@@ -35,7 +48,6 @@ export default function TopbarClient() {
   const isAuthPage = useMemo(() => pathname?.startsWith("/auth"), [pathname]);
 
   const refreshUnread = useCallback(async () => {
-    // évite les refresh concurrents
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
@@ -65,9 +77,20 @@ export default function TopbarClient() {
         return;
       }
 
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) return;
+      const raw = await res.text();
+      const parsed = parseJsonSafe(raw);
 
+      if (!parsed || typeof parsed !== "object") {
+        // pas bloquant
+        return;
+      }
+
+      if (!res.ok) {
+        // pas bloquant
+        return;
+      }
+
+      const json = parsed as InboxApiResponse;
       const items = (json.items || []) as InboxItem[];
       setUnreadTotal(sumUnread(items));
     } finally {
@@ -97,7 +120,6 @@ export default function TopbarClient() {
       setUid(u);
       setChecking(false);
 
-      // on charge le badge si connecté
       if (u) await refreshUnread();
     })();
 
@@ -115,13 +137,13 @@ export default function TopbarClient() {
     };
   }, [refreshUnread]);
 
-  // ✅ Refresh sur changement de route (pratique après mark-read /messages/[bookingId])
+  // ✅ Refresh sur changement de route
   useEffect(() => {
     if (!uid) return;
     scheduleRefresh();
   }, [pathname, uid, scheduleRefresh]);
 
-  // ✅ Refresh au retour d’onglet / focus (fallback fiable)
+  // ✅ Refresh au retour d’onglet / focus
   useEffect(() => {
     if (!uid) return;
 
@@ -154,13 +176,12 @@ export default function TopbarClient() {
           filter: `receiver_id=eq.${uid}`,
         },
         () => {
-          // insert (nouveau message) OU update (mark-read) -> badge doit bouger
           scheduleRefresh();
         }
       )
       .subscribe();
 
-    // fallback: au cas où realtime n'est pas actif, on repoll toutes les 30s
+    // fallback: repoll toutes les 30s
     const poll = setInterval(() => {
       refreshUnread();
     }, 30000);
@@ -205,7 +226,6 @@ export default function TopbarClient() {
             Mes réservations
           </Link>
 
-          {/* Messages + badge (visible si connecté) */}
           {uid && (
             <Link className="bl-pill" href="/messages" style={{ position: "relative" }}>
               Messages
@@ -235,7 +255,6 @@ export default function TopbarClient() {
             </Link>
           )}
 
-          {/* Auth / Session */}
           {!uid ? (
             <Link className="bl-pill" href="/auth" aria-current={isAuthPage ? "page" : undefined}>
               Connexion

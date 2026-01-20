@@ -1,4 +1,3 @@
-// FILE: src/app/publish/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +11,12 @@ const BUCKET = "listing-images";
 const STORAGE_PREFIX = "listings"; // chemin: listings/<listingId>/<n>-<filename>
 
 type BillingUnit = "night" | "day" | "week";
+
+type CreateListingResponse = {
+  listing?: { id?: string | number | null } | null;
+  email?: { attempted?: boolean; warning?: string | null } | null;
+  error?: string | null;
+};
 
 function toCents(input: string) {
   const normalized = input.trim().replace(",", ".");
@@ -54,6 +59,20 @@ function unitLabel(unit: BillingUnit) {
   if (unit === "night") return "nuit";
   if (unit === "day") return "jour";
   return "semaine";
+}
+
+function getErrorMessage(e: unknown) {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return "Erreur";
+}
+
+function parseJsonSafe(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export default function PublishPage() {
@@ -184,18 +203,21 @@ export default function PublishPage() {
       });
 
       const raw = await res.text();
-      let json: any = null;
-      try {
-        json = JSON.parse(raw);
-      } catch {
+      const parsed = parseJsonSafe(raw);
+
+      if (!parsed || typeof parsed !== "object") {
         throw new Error("Réponse API invalide (pas du JSON). Regarde la console serveur.");
       }
+
+      const json = parsed as CreateListingResponse;
 
       if (!res.ok) {
         throw new Error(json?.error ?? `Erreur serveur (${res.status})`);
       }
 
-      const newId = String(json?.listing?.id || "").trim();
+      const newIdRaw = json?.listing?.id;
+      const newId = newIdRaw === null || typeof newIdRaw === "undefined" ? "" : String(newIdRaw).trim();
+
       if (!newId) {
         throw new Error("Impossible de récupérer l’ID de l’annonce (listing.id manquant).");
       }
@@ -216,14 +238,12 @@ export default function PublishPage() {
       if (emailAttempted && !emailWarning) {
         setSuccessMsg("Annonce créée. Email de confirmation envoyé. Étape 2 : ajoute tes images.");
       } else if (emailAttempted && emailWarning) {
-        setSuccessMsg(
-          `Annonce créée. Étape 2 : ajoute tes images. (Email non envoyé: ${emailWarning})`
-        );
+        setSuccessMsg(`Annonce créée. Étape 2 : ajoute tes images. (Email non envoyé: ${emailWarning})`);
       } else {
         setSuccessMsg("Annonce créée. Étape 2 : ajoute tes images.");
       }
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur création annonce.");
+    } catch (e: unknown) {
+      setErrorMsg(getErrorMessage(e) || "Erreur création annonce.");
     } finally {
       setCreating(false);
     }
@@ -312,8 +332,8 @@ export default function PublishPage() {
       if (typeof window !== "undefined") window.localStorage.removeItem("publish:lastListingId");
 
       router.push("/my-listings");
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur upload.");
+    } catch (e: unknown) {
+      setErrorMsg(getErrorMessage(e) ?? "Erreur upload.");
     } finally {
       setUploading(false);
     }
@@ -325,7 +345,7 @@ export default function PublishPage() {
     setFiles([]);
     setListingId(null);
 
-    // ✅ Reset champs étape 1 (fondamentaux)
+    // ✅ Reset champs étape 1
     setTitle("");
     setCity("");
     setKind("Appartement");
@@ -475,22 +495,6 @@ export default function PublishPage() {
     transition: "transform 0.15s ease, box-shadow 0.15s ease",
   });
 
-  const previewsGrid: React.CSSProperties = {
-    marginTop: 12,
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
-    gap: 12,
-  };
-
-  const previewCard: React.CSSProperties = {
-    border: "1px solid #ececec",
-    borderRadius: 16,
-    background: "white",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.04)",
-    overflow: "hidden",
-    transition: "transform 0.15s ease, box-shadow 0.15s ease",
-  };
-
   if (checking) {
     return (
       <main style={{ maxWidth: 920, margin: "0 auto", padding: 24 }}>
@@ -534,8 +538,7 @@ export default function PublishPage() {
           <div>
             <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Mets ton logement en ligne en 2 étapes.</div>
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
-              Crée l’annonce, puis ajoute les images. La première image devient la couverture (modifiable sur la page
-              détail).
+              Crée l’annonce, puis ajoute les images. La première image devient la couverture (modifiable sur la page détail).
             </div>
           </div>
 
@@ -636,11 +639,7 @@ export default function PublishPage() {
                 <div style={{ marginTop: 6, opacity: 0.7, fontSize: 13 }}>Astuce : 12,5 ou 12.5</div>
               </div>
 
-              <button
-                onClick={createListing}
-                disabled={!canCreate || !!listingId || creating}
-                style={primaryBtn(!canCreate || !!listingId || creating)}
-              >
+              <button onClick={createListing} disabled={!canCreate || !!listingId || creating} style={primaryBtn(!canCreate || !!listingId || creating)}>
                 {listingId ? "Annonce créée" : creating ? "Création…" : "Créer l’annonce"}
               </button>
 
@@ -663,11 +662,7 @@ export default function PublishPage() {
               </div>
             </div>
 
-            {uploading ? (
-              <span style={badge}>Upload : {progressPct}%</span>
-            ) : (
-              <span style={badge}>{step1Done ? "Prêt" : "Bloqué (étape 1)"}</span>
-            )}
+            {uploading ? <span style={badge}>Upload : {progressPct}%</span> : <span style={badge}>{step1Done ? "Prêt" : "Bloqué (étape 1)"}</span>}
           </div>
 
           <div style={panelBody}>
@@ -704,12 +699,12 @@ export default function PublishPage() {
               title={!listingId ? "Crée d’abord l’annonce" : "Glisse-dépose tes images ici"}
               onMouseEnter={(e) => {
                 if (!listingId || uploading) return;
-                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 14px 30px rgba(0,0,0,0.05)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 14px 30px rgba(0,0,0,0.05)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
               {!listingId ? (
@@ -748,12 +743,12 @@ export default function PublishPage() {
                           transition: "transform 0.15s ease, box-shadow 0.15s ease",
                         }}
                         onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-                          (e.currentTarget as HTMLDivElement).style.boxShadow = "0 16px 38px rgba(0,0,0,0.07)";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                          e.currentTarget.style.boxShadow = "0 16px 38px rgba(0,0,0,0.07)";
                         }}
                         onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                          (e.currentTarget as HTMLDivElement).style.boxShadow = "0 10px 24px rgba(0,0,0,0.04)";
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 10px 24px rgba(0,0,0,0.04)";
                         }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}

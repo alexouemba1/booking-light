@@ -1,7 +1,8 @@
+// FILE: next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Mets ici uniquement des options Next encore supportées.
 };
 
 export default nextConfig;

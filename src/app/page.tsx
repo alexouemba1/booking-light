@@ -21,6 +21,12 @@ function formatUnit(u: string) {
   return u;
 }
 
+function getErrorMessage(e: unknown) {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return "Erreur";
+}
+
 export default function HomePage() {
   const [items, setItems] = useState<ListingHome[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +36,7 @@ export default function HomePage() {
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState(""); // YYYY-MM-DD
   const [endDate, setEndDate] = useState(""); // YYYY-MM-DD
-  const [guests, setGuests] = useState<number>(1); // pas encore utilisé côté DB (mais on garde)
+  const [guests, setGuests] = useState<number>(1);
 
   async function search(next?: { city?: string; startDate?: string; endDate?: string; guests?: number }) {
     const c = (next?.city ?? city).trim();
@@ -48,12 +54,21 @@ export default function HomePage() {
       sp.set("guests", String(next?.guests ?? guests ?? 1));
 
       const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
+      const json: unknown = await res.json();
 
-      setItems((json.items ?? []) as ListingHome[]);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur");
+      if (!res.ok) {
+        const msg =
+          typeof json === "object" && json && "error" in json
+            ? String((json as { error?: unknown }).error ?? "Erreur recherche")
+            : "Erreur recherche";
+        throw new Error(msg);
+      }
+
+      const itemsValue =
+        typeof json === "object" && json && "items" in json ? (json as { items?: unknown }).items : [];
+      setItems((itemsValue ?? []) as ListingHome[]);
+    } catch (e: unknown) {
+      setErrorMsg(getErrorMessage(e));
       setItems([]);
     } finally {
       setLoading(false);
@@ -92,11 +107,8 @@ export default function HomePage() {
 
         <div className="bl-hero-card">
           <div className="bl-hero-card-title">Trouve un endroit où poser tes valises.</div>
-          <div className="bl-hero-card-sub">
-            Recherche une ville, puis clique sur une carte pour voir le détail et réserver.
-          </div>
+          <div className="bl-hero-card-sub">Recherche une ville, puis clique sur une carte pour voir le détail et réserver.</div>
 
-          {/* Barre de recherche */}
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
             <div
               style={{
@@ -187,13 +199,11 @@ export default function HomePage() {
                   </div>
 
                   <div className="bl-card-body">
-                    {/* Titre + prix sur la même ligne pour mieux “vendre” */}
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div className="bl-card-title" style={{ lineHeight: 1.15 }}>
                         {l.title}
                       </div>
 
-                      {/* ✅ Prix qui ressort vraiment (pill) */}
                       <div
                         style={{
                           flex: "0 0 auto",
