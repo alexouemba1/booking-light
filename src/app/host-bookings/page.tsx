@@ -114,7 +114,17 @@ export default function HostBookingsPage() {
     setLoading(true);
     setErrorMsg(null);
 
-    const { data: s } = await supabase.auth.getSession();
+    // ✅ Fix TS: supabase peut être typé comme nullable -> on "narrow"
+    const sb = supabase;
+    if (!sb) {
+      setErrorMsg(
+        "Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const { data: s } = await sb.auth.getSession();
     const token = s.session?.access_token ?? null;
     const uid = s.session?.user?.id ?? null;
 
@@ -170,7 +180,15 @@ export default function HostBookingsPage() {
 
   return (
     <main className="bl-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h1 style={{ margin: 0 }}>{title}</h1>
@@ -237,7 +255,11 @@ export default function HostBookingsPage() {
               >
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={cover} alt="" style={{ width: 110, height: 76, objectFit: "cover", borderRadius: 12 }} />
+                  <img
+                    src={cover}
+                    alt=""
+                    style={{ width: 110, height: 76, objectFit: "cover", borderRadius: 12 }}
+                  />
                 ) : (
                   <div style={{ width: 110, height: 76, borderRadius: 12, background: "rgba(0,0,0,0.06)" }} />
                 )}
@@ -259,8 +281,7 @@ export default function HostBookingsPage() {
                   </div>
 
                   <div style={{ marginTop: 8, fontSize: 13, opacity: 0.78 }}>
-                    <strong>Dernier message :</strong>{" "}
-                    {it.last_message ? it.last_message : "—"}
+                    <strong>Dernier message :</strong> {it.last_message ? it.last_message : "—"}
                     {it.last_message_at ? (
                       <span style={{ marginLeft: 10, fontSize: 12, opacity: 0.7 }}>
                         ({formatDateTimeFR(it.last_message_at)})
