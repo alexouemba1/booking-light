@@ -5,15 +5,25 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-const stripe = new Stripe(STRIPE_SECRET_KEY ?? "");
-
-
 const PLATFORM_FEE_PCT = 0.14;
+
+// ✅ Lazy init Stripe (évite crash au build si env manquante)
+let stripeSingleton: Stripe | null = null;
+
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("Config manquante: STRIPE_SECRET_KEY");
+  }
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(key);
+  }
+  return stripeSingleton;
+}
 
 function getBearerToken(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -26,20 +36,29 @@ function asInt(n: any) {
   return Number.isFinite(x) ? Math.trunc(x) : NaN;
 }
 
+function j(data: any, status = 200) {
+  return NextResponse.json(data, { status });
+}
+
 export async function POST(req: Request) {
   try {
-    if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !APP_URL) {
-      return NextResponse.json(
-        { error: "Config manquante (STRIPE_SECRET_KEY / SUPABASE_URL / SERVICE_ROLE / NEXT_PUBLIC_APP_URL)." },
-        { status: 500 }
+    // ✅ Vérifs config (hors Stripe, Stripe est vérifié dans getStripe())
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !APP_URL) {
+      return j(
+        {
+          error:
+            "Config manquante (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_APP_URL).",
+        },
+        500
       );
     }
 
     const token = getBearerToken(req);
-    if (!token) return NextResponse.json({ error: "Non authentifié (token manquant)." }, { status: 401 });
+    if (!token) return j({ error: "Non authentifié (token manquant)." }, 401);
 
-    const { bookingId } = await req.json();
-    if (!bookingId) return NextResponse.json({ error: "bookingId manquant." }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const bookingId = body?.bookingId;
+    if (!bookingId) return j({ error: "bookingId manquant." }, 400);
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
@@ -52,36 +71,35 @@ export async function POST(req: Request) {
       .eq("id", bookingId)
       .single();
 
-    if (bErr || !booking) return NextResponse.json({ error: "Réservation introuvable." }, { status: 404 });
+    if (bErr || !booking) return j({ error: "Réservation introuvable." }, 404);
 
     // 2) Refuser si expirée / annulée / payée
     const statusKey = String(booking.status || "").toLowerCase();
     const payKey = String(booking.payment_status || "unpaid").toLowerCase();
 
     if (statusKey === "paid" || payKey === "paid") {
-      return NextResponse.json({ error: "Réservation déjà payée." }, { status: 400 });
+      return j({ error: "Réservation déjà payée." }, 400);
     }
     if (statusKey === "cancelled") {
-      return NextResponse.json({ error: "Cette réservation est annulée (option expirée)." }, { status: 400 });
+      return j({ error: "Cette réservation est annulée (option expirée)." }, 400);
     }
 
     // Expiration côté serveur (double sécurité)
     if (booking.expires_at) {
       const exp = new Date(String(booking.expires_at)).getTime();
       if (Number.isFinite(exp) && exp <= Date.now()) {
-        // Optionnel: on annule tout de suite si pas déjà annulée
         await admin
           .from("bookings")
           .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
           .eq("id", bookingId);
 
-        return NextResponse.json({ error: "Option expirée. Reprends une nouvelle réservation." }, { status: 400 });
+        return j({ error: "Option expirée. Reprends une nouvelle réservation." }, 400);
       }
     }
 
     const total = asInt(booking.total_cents);
     if (!Number.isFinite(total) || total <= 0) {
-      return NextResponse.json({ error: "Montant invalide." }, { status: 400 });
+      return j({ error: "Montant invalide." }, 400);
     }
 
     // 3) Charger l’annonce pour trouver l’hôte
@@ -91,10 +109,10 @@ export async function POST(req: Request) {
       .eq("id", booking.listing_id)
       .single();
 
-    if (lErr || !listing) return NextResponse.json({ error: "Annonce introuvable." }, { status: 404 });
+    if (lErr || !listing) return j({ error: "Annonce introuvable." }, 404);
 
     const hostUserId = listing.user_id;
-    if (!hostUserId) return NextResponse.json({ error: "Annonce invalide (user_id hôte manquant)." }, { status: 400 });
+    if (!hostUserId) return j({ error: "Annonce invalide (user_id hôte manquant)." }, 400);
 
     // 4) Lire le compte Stripe Connect de l’hôte
     const { data: hostProfile, error: pErr } = await admin
@@ -105,15 +123,18 @@ export async function POST(req: Request) {
 
     const destinationAccount = String(hostProfile?.stripe_account_id || "").trim();
     if (pErr || !destinationAccount || !destinationAccount.startsWith("acct_")) {
-      return NextResponse.json(
-        { error: "Hôte non configuré Stripe Connect (profiles.stripe_account_id manquant ou invalide)." },
-        { status: 400 }
+      return j(
+        {
+          error:
+            "Hôte non configuré Stripe Connect (profiles.stripe_account_id manquant ou invalide).",
+        },
+        400
       );
     }
 
     // 5) Commission
     const platformFee = Math.max(0, Math.round(total * PLATFORM_FEE_PCT));
-    if (platformFee >= total) return NextResponse.json({ error: "Commission invalide (>= total)." }, { status: 400 });
+    if (platformFee >= total) return j({ error: "Commission invalide (>= total)." }, 400);
 
     const subtotal = total - platformFee;
 
@@ -125,6 +146,9 @@ export async function POST(req: Request) {
     // 6) URLs retour
     const successUrl = `${APP_URL}/my-bookings?paid=1&bookingId=${encodeURIComponent(bookingId)}`;
     const cancelUrl = `${APP_URL}/my-bookings?canceled=1&bookingId=${encodeURIComponent(bookingId)}`;
+
+    // ✅ Instancier Stripe ici (lazy)
+    const stripe = getStripe();
 
     // 7) Stripe Checkout + split Connect
     const session = await stripe.checkout.sessions.create({
@@ -156,8 +180,9 @@ export async function POST(req: Request) {
       .update({ stripe_checkout_session_id: session.id })
       .eq("id", bookingId);
 
-    return NextResponse.json({ url: session.url }, { status: 200 });
+    return j({ url: session.url }, 200);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Erreur checkout." }, { status: 500 });
+    console.error("[checkout] error:", e?.message);
+    return j({ error: e?.message ?? "Erreur checkout." }, 500);
   }
 }
