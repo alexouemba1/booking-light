@@ -1,11 +1,21 @@
 // FILE: src/app/listing/[id]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { publicListingImageUrl } from "@/lib/storage";
+
+/* =======================
+   Supabase guard
+======================= */
+
+function getSb() {
+  // Ton projet a supabase possiblement null => on protège partout
+  if (!supabase) return null;
+  return supabase;
+}
 
 /* =======================
    Types
@@ -235,7 +245,6 @@ function StarsInline({ value, count }: { value: number; count: number }) {
     const filled = idx <= full;
     const isHalf = !filled && half && idx === full + 1;
 
-    // demi étoile simple: on affiche une étoile pleine mais plus claire si demi
     const color = filled ? "rgba(17,24,39,1)" : isHalf ? "rgba(17,24,39,0.6)" : "rgba(0,0,0,0.25)";
     return (
       <span key={i} aria-hidden="true" style={{ color, ...starStyle }}>
@@ -292,7 +301,6 @@ export default function ListingPage() {
   const bookingPanelRef = useRef<HTMLElement | null>(null);
   const reviewsRef = useRef<HTMLElement | null>(null);
 
-  // tick 1/sec (compteurs)
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
   /* =======================
@@ -301,11 +309,9 @@ export default function ListingPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
 
-  // ✅ stats fiables depuis listings
   const [ratingAvg, setRatingAvg] = useState<number>(0);
   const [ratingCount, setRatingCount] = useState<number>(0);
 
-  // ✅ edition
   const [myReviewId, setMyReviewId] = useState<string | null>(null);
 
   const [reviewRating, setReviewRating] = useState<number>(5);
@@ -378,7 +384,10 @@ export default function ListingPage() {
      Session
   ======================= */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const sb = getSb();
+    if (!sb) return;
+
+    sb.auth.getSession().then(({ data }) => {
       setSessionUserId(data.session?.user?.id ?? null);
     });
   }, []);
@@ -400,11 +409,18 @@ export default function ListingPage() {
     let alive = true;
 
     async function load() {
+      const sb = getSb();
+      if (!sb) {
+        setErrorMsg("Supabase non initialisé. Vérifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setErrorMsg(null);
       setSuccessMsg(null);
 
-      const { data: listingData, error } = await supabase
+      const { data: listingData, error } = await sb
         .from("listings")
         .select("id,user_id,title,city,kind,price_cents,billing_unit,cover_image_path,rating_avg,rating_count")
         .eq("id", id)
@@ -418,7 +434,7 @@ export default function ListingPage() {
         return;
       }
 
-      const { data: imgs } = await supabase
+      const { data: imgs } = await sb
         .from("listing_images")
         .select("id,path,position")
         .eq("listing_id", id)
@@ -456,13 +472,12 @@ export default function ListingPage() {
   }, [id]);
 
   const refreshRatingStats = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("listings")
-      .select("rating_avg,rating_count")
-      .eq("id", id)
-      .single();
+    const sb = getSb();
+    if (!sb) return;
 
+    const { data, error } = await sb.from("listings").select("rating_avg,rating_count").eq("id", id).single();
     if (error || !data) return;
+
     const avg = Number.isFinite(Number((data as any).rating_avg)) ? Number((data as any).rating_avg) : 0;
     const cnt = Number.isFinite(Number((data as any).rating_count)) ? Number((data as any).rating_count) : 0;
     setRatingAvg(avg);
@@ -473,11 +488,18 @@ export default function ListingPage() {
      Load reviews list
   ======================= */
   const loadReviews = useCallback(async () => {
+    const sb = getSb();
+    if (!sb) {
+      setReviews([]);
+      setReviewMsg("Supabase non initialisé.");
+      return;
+    }
+
     setReviewsLoading(true);
     setReviewMsg(null);
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("reviews")
         .select("id,listing_id,booking_id,author_id,rating,comment,created_at")
         .eq("listing_id", id)
@@ -509,23 +531,20 @@ export default function ListingPage() {
     loadReviews();
   }, [loadReviews]);
 
-  // ✅ Charger mon avis si on arrive avec review=1 + bookingId
   const loadMyReview = useCallback(async () => {
+    const sb = getSb();
+    if (!sb) return;
+
     setMyReviewId(null);
 
     if (!wantsReview) return;
     if (!bookingIdFromUrl) return;
 
-    const { data: session } = await supabase.auth.getSession();
+    const { data: session } = await sb.auth.getSession();
     const uid = session.session?.user?.id ?? null;
     if (!uid) return;
 
-    const { data, error } = await supabase
-      .from("reviews")
-      .select("id,rating,comment")
-      .eq("booking_id", String(bookingIdFromUrl))
-      .maybeSingle();
-
+    const { data, error } = await sb.from("reviews").select("id,rating,comment").eq("booking_id", String(bookingIdFromUrl)).maybeSingle();
     if (error) return;
 
     if (data?.id) {
@@ -533,7 +552,6 @@ export default function ListingPage() {
       setReviewRating(Math.max(1, Math.min(5, Number((data as any).rating || 5))));
       setReviewComment((data as any).comment ? String((data as any).comment) : "");
     } else {
-      // pas d'avis: valeurs par défaut
       setMyReviewId(null);
       setReviewRating(5);
       setReviewComment("");
@@ -544,7 +562,6 @@ export default function ListingPage() {
     loadMyReview();
   }, [loadMyReview]);
 
-  // Si l’URL arrive avec ?review=1#reviews, on scroll proprement une fois que ça existe
   useEffect(() => {
     if (!wantsReview) return;
     const t = setTimeout(() => {
@@ -558,9 +575,7 @@ export default function ListingPage() {
   ======================= */
   const refreshAvailability = useCallback(async () => {
     try {
-      const res = await fetch(`/api/availability?listingId=${encodeURIComponent(id)}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(`/api/availability?listingId=${encodeURIComponent(id)}`, { cache: "no-store" });
       const json = await res.json();
       if (res.ok) setRanges(json.ranges || []);
     } catch {
@@ -611,7 +626,6 @@ export default function ListingPage() {
     return units * listing.price_cents;
   }, [listing, startDate, endDate]);
 
-  // ✅ Détecter si les dates choisies sont bloquées
   const chosenDatesBlockReason = useMemo(() => {
     if (!startDate || !endDate) return null;
 
@@ -658,6 +672,11 @@ export default function ListingPage() {
   const [coverSaving, setCoverSaving] = useState<string | null>(null);
 
   async function setAsCover(path: string) {
+    const sb = getSb();
+    if (!sb) {
+      setErrorMsg("Supabase non initialisé.");
+      return;
+    }
     if (!listing) return;
     if (!isOwner) return;
 
@@ -672,7 +691,7 @@ export default function ListingPage() {
       ]);
       if (!allowed.has(path)) throw new Error("Image non autorisée.");
 
-      const { error } = await supabase.from("listings").update({ cover_image_path: path }).eq("id", listing.id);
+      const { error } = await sb.from("listings").update({ cover_image_path: path }).eq("id", listing.id);
       if (error) throw error;
 
       setListing((prev) => (prev ? { ...prev, cover_image_path: path } : prev));
@@ -689,11 +708,17 @@ export default function ListingPage() {
   ======================= */
 
   async function bookNow() {
+    const sb = getSb();
+    if (!sb) {
+      setErrorMsg("Supabase non initialisé.");
+      return;
+    }
+
     setErrorMsg(null);
     setSuccessMsg(null);
     setCreatedBookingId(null);
 
-    const { data } = await supabase.auth.getSession();
+    const { data } = await sb.auth.getSession();
     const token = data.session?.access_token;
 
     if (!token) {
@@ -740,12 +765,18 @@ export default function ListingPage() {
   }
 
   /* =======================
-     ✅ Submit / update review (obligatoirement lié à un booking)
+     ✅ Submit / update review
   ======================= */
   async function submitReview() {
+    const sb = getSb();
+    if (!sb) {
+      setReviewMsg("Supabase non initialisé.");
+      return;
+    }
+
     setReviewMsg(null);
 
-    const { data: session } = await supabase.auth.getSession();
+    const { data: session } = await sb.auth.getSession();
     const uid = session.session?.user?.id ?? null;
 
     if (!uid) {
@@ -777,13 +808,11 @@ export default function ListingPage() {
       };
 
       if (myReviewId) {
-        const { error } = await supabase.from("reviews").update(payload).eq("id", myReviewId);
+        const { error } = await sb.from("reviews").update(payload).eq("id", myReviewId);
         if (error) throw error;
         setReviewMsg("Avis mis à jour. Merci.");
       } else {
-        const { error } = await supabase
-          .from("reviews")
-          .insert({ booking_id: String(bookingIdFromUrl), ...payload } as any);
+        const { error } = await sb.from("reviews").insert({ booking_id: String(bookingIdFromUrl), ...payload } as any);
         if (error) throw error;
         setReviewMsg("Avis envoyé. Merci.");
       }
@@ -793,7 +822,6 @@ export default function ListingPage() {
       await loadMyReview();
     } catch (e: any) {
       const msg = e?.message ?? "Impossible d’envoyer l’avis.";
-      // si unique constraint côté DB, on rend ça humain
       if (typeof msg === "string" && msg.toLowerCase().includes("duplicate")) {
         setReviewMsg("Tu as déjà laissé un avis pour cette réservation. Modifie-le plutôt.");
       } else {
@@ -904,9 +932,7 @@ export default function ListingPage() {
           <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>Galerie</span>
             {isOwner && (
-              <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>
-                Astuce : clique “Définir comme couverture”.
-              </span>
+              <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>Astuce : clique “Définir comme couverture”.</span>
             )}
           </div>
 
@@ -1091,7 +1117,12 @@ export default function ListingPage() {
         <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Avis</span>
 
-          <button className="bl-btn" style={{ marginTop: 0, height: 38, fontWeight: 900 }} onClick={loadReviews} disabled={reviewsLoading}>
+          <button
+            className="bl-btn"
+            style={{ marginTop: 0, height: 38, fontWeight: 900 }}
+            onClick={loadReviews}
+            disabled={reviewsLoading}
+          >
             {reviewsLoading ? "Chargement…" : "Rafraîchir"}
           </button>
         </div>
@@ -1109,17 +1140,14 @@ export default function ListingPage() {
             }}
           >
             <StarsInline value={ratingAvg} count={ratingCount} />
-            <span style={{ fontWeight: 900, opacity: 0.75 }}>{ratingCount === 0 ? "Aucun avis" : `${ratingAvg.toFixed(1)} / 5`}</span>
+            <span style={{ fontWeight: 900, opacity: 0.75 }}>
+              {ratingCount === 0 ? "Aucun avis" : `${ratingAvg.toFixed(1)} / 5`}
+            </span>
           </div>
 
-          {reviewMsg && (
-            <div style={{ fontSize: 13, fontWeight: 900, opacity: 0.75 }}>
-              {reviewMsg}
-            </div>
-          )}
+          {reviewMsg && <div style={{ fontSize: 13, fontWeight: 900, opacity: 0.75 }}>{reviewMsg}</div>}
         </div>
 
-        {/* Formulaire - visible si on arrive avec review=1 */}
         {wantsReview && (
           <div style={{ marginTop: 14 }}>
             {!bookingIdFromUrl ? (
