@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -13,7 +12,6 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const stripe = new Stripe(STRIPE_SECRET_KEY ?? "");
-
 
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -31,7 +29,6 @@ function buildAutoMessage() {
 // ✅ Create auto-message uniquement si aucune conversation pour ce booking
 async function maybeCreateAutoMessage(params: {
   admin: SupabaseClient<any, any, any>;
-
   bookingId: string;
   renterId: string;
   hostId: string;
@@ -59,16 +56,15 @@ async function maybeCreateAutoMessage(params: {
 
   // Message envoyé par le renter -> lu côté renter, non lu côté host
   const payload = {
-  booking_id: bookingId,
-  sender_id: renterId,
-  receiver_id: hostId,
-  body: buildAutoMessage(),
-  read_by_renter_at: nowIso,
-  read_by_host_at: null,
-} as any;
+    booking_id: bookingId,
+    sender_id: renterId,
+    receiver_id: hostId,
+    body: buildAutoMessage(),
+    read_by_renter_at: nowIso,
+    read_by_host_at: null,
+  } as any;
 
-const { error: insErr } = await admin.from("messages").insert([payload] as any);
-
+  const { error: insErr } = await admin.from("messages").insert([payload] as any);
 
   if (insErr) {
     console.warn("[webhook] auto-message insert failed:", insErr.message);
@@ -92,7 +88,10 @@ export async function POST(req: Request) {
       hasUrl: !!SUPABASE_URL,
       hasSrv: !!SUPABASE_SERVICE_ROLE_KEY,
     });
-    return j({ error: "Config manquante (STRIPE_WEBHOOK_SECRET / SUPABASE_URL / SERVICE_ROLE)." }, 500);
+    return j(
+      { error: "Config manquante (STRIPE_WEBHOOK_SECRET / SUPABASE_URL / SERVICE_ROLE)." },
+      500
+    );
   }
 
   // 1) Signature
@@ -125,7 +124,8 @@ export async function POST(req: Request) {
 
   // 3) Idempotence: on enregistre evt_... (si déjà vu, on sort)
   const createdUnix = (event as any).created;
-  const createdIso = typeof createdUnix === "number" ? new Date(createdUnix * 1000).toISOString() : null;
+  const createdIso =
+    typeof createdUnix === "number" ? new Date(createdUnix * 1000).toISOString() : null;
 
   const { error: evtInsertErr } = await admin.from("stripe_events").insert({
     id: event.id,
@@ -282,10 +282,12 @@ export async function POST(req: Request) {
             .maybeSingle();
 
           const hostId = listing?.user_id ? String(listing.user_id) : "";
-          if (hostId && bookingId) {
-          await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
-        }
 
+          // ✅ FIX TS: on "narrow" bookingId proprement
+          if (hostId && bookingId) {
+            const bookingIdStr: string = bookingId;
+            await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
+          }
         }
       } catch (e: any) {
         console.warn("[webhook] auto-message warn:", e?.message);
@@ -319,7 +321,9 @@ export async function POST(req: Request) {
       .from("bookings")
       .update(updatePayload)
       .eq("id", bookingId)
-      .select("id,status,payment_status,paid_at,expires_at,stripe_checkout_session_id,renter_id,listing_id")
+      .select(
+        "id,status,payment_status,paid_at,expires_at,stripe_checkout_session_id,renter_id,listing_id"
+      )
       .single();
 
     console.log("[webhook] update result:", { upErr: upErr?.message, updated });
@@ -353,7 +357,12 @@ export async function POST(req: Request) {
 
         if (!lErr && listing?.user_id) {
           const hostId = String(listing.user_id);
-          await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
+
+          // ✅ FIX TS: bookingId est toujours string|null ici, on narrow
+          if (bookingId) {
+            const bookingIdStr: string = bookingId;
+            await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
+          }
         } else {
           console.warn("[webhook] auto-message: listing lookup failed", lErr?.message);
         }
