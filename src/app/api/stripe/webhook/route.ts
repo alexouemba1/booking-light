@@ -1,6 +1,7 @@
 // FILE: src/app/api/stripe/webhook/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import nodemailer from "nodemailer";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -36,6 +37,107 @@ function isExpired(expiresAt?: string | null) {
   if (!Number.isFinite(t)) return false;
   return t <= Date.now();
 }
+
+/* =========================
+   EMAIL (SMTP Gmail / Workspace)
+========================= */
+
+let mailerSingleton: nodemailer.Transporter | null = null;
+
+function getMailer() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
+    throw new Error("Config SMTP manquante (SMTP_HOST/SMTP_USER/SMTP_PASS).");
+  }
+
+  if (!mailerSingleton) {
+    mailerSingleton = nodemailer.createTransport({
+      host,
+      port,
+      secure: false, // 587 = STARTTLS
+      auth: { user, pass },
+    });
+  }
+
+  return mailerSingleton;
+}
+
+async function getUserEmailById(admin: SupabaseClient<any, any, any>, userId: string) {
+  // Service role => accès admin auth
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) throw new Error(`auth.getUserById failed: ${error.message}`);
+  const email = data?.user?.email ?? null;
+  return email;
+}
+
+// ✅ (simple) sujet/texte confirmation
+function buildPaymentEmail(params: { bookingId: string }) {
+  const { bookingId } = params;
+
+  const subject = "Paiement confirmé — votre réservation est validée";
+
+  const text = `Bonjour,
+
+Votre paiement a bien été confirmé. Votre réservation est maintenant validée.
+
+Référence réservation : ${bookingId}
+
+Merci,
+Lightbooker`;
+
+  const html = `
+  <div style="font-family:Arial,sans-serif;line-height:1.5">
+    <h2>Paiement confirmé</h2>
+    <p>Votre paiement a bien été confirmé. Votre réservation est maintenant <b>validée</b>.</p>
+    <p><b>Référence réservation :</b> ${bookingId}</p>
+    <p>Merci,<br/>Lightbooker</p>
+  </div>`;
+
+  return { subject, text, html };
+}
+
+async function sendPaymentConfirmationEmail(params: {
+  admin: SupabaseClient<any, any, any>;
+  renterId: string;
+  bookingId: string;
+}) {
+  const { admin, renterId, bookingId } = params;
+
+  const to = await getUserEmailById(admin, renterId);
+  if (!to) {
+    console.warn("[webhook] email: renter email introuvable", { renterId, bookingId });
+    return;
+  }
+
+  const smtpUser = process.env.SMTP_USER!;
+  const from = process.env.EMAIL_FROM || `"Lightbooker" <${smtpUser}>`;
+
+  const transporter = getMailer();
+  const { subject, text, html } = buildPaymentEmail({ bookingId });
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  console.log("[webhook] email: confirmation envoyée", {
+    bookingId,
+    to,
+    messageId: info.messageId,
+    accepted: info.accepted,
+  });
+}
+
+/* =========================
+   AUTO MESSAGE (messagerie interne)
+========================= */
 
 // ✅ Message automatique (modifiable)
 function buildAutoMessage() {
@@ -90,6 +192,9 @@ async function maybeCreateAutoMessage(params: {
 export async function POST(req: Request) {
   const t0 = Date.now();
 
+  // Pour pouvoir référencer event.id même en cas d'erreur tardive
+  let event: Stripe.Event | null = null;
+
   // 0) Vérif config
   if (!STRIPE_SECRET_KEY) {
     console.error("[webhook] STRIPE_SECRET_KEY manquante");
@@ -101,10 +206,7 @@ export async function POST(req: Request) {
       hasUrl: !!SUPABASE_URL,
       hasSrv: !!SUPABASE_SERVICE_ROLE_KEY,
     });
-    return j(
-      { error: "Config manquante (STRIPE_WEBHOOK_SECRET / SUPABASE_URL / SERVICE_ROLE)." },
-      500
-    );
+    return j({ error: "Config manquante (STRIPE_WEBHOOK_SECRET / SUPABASE_URL / SERVICE_ROLE)." }, 500);
   }
 
   // ✅ Instancier Stripe ici (lazy)
@@ -126,7 +228,6 @@ export async function POST(req: Request) {
   // 2) Raw body + construct event
   const body = await req.text();
 
-  let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
   } catch (err: any) {
@@ -146,8 +247,7 @@ export async function POST(req: Request) {
 
   // 3) Idempotence: on enregistre evt_... (si déjà vu, on sort)
   const createdUnix = (event as any).created;
-  const createdIso =
-    typeof createdUnix === "number" ? new Date(createdUnix * 1000).toISOString() : null;
+  const createdIso = typeof createdUnix === "number" ? new Date(createdUnix * 1000).toISOString() : null;
 
   const { error: evtInsertErr } = await admin.from("stripe_events").insert({
     id: event.id,
@@ -211,9 +311,7 @@ export async function POST(req: Request) {
     const bookingIdFromMetadata = asString(session?.metadata?.bookingId).trim();
 
     const paymentIntentId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : (session.payment_intent as any)?.id ?? null;
+      typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent as any)?.id ?? null;
 
     // A) bookingId via metadata, sinon fallback via stripe_checkout_session_id
     let bookingId: string | null = null;
@@ -354,30 +452,34 @@ export async function POST(req: Request) {
     }
 
     // ✅ Déjà confirmé/paid -> on ne retouche pas la booking
-    // ✅ MAIS on peut quand même tenter l’auto-message si la conversation est vide
+    // ✅ MAIS on peut quand même tenter l’auto-message + email si besoin
     if (payLower === "paid" || statusLower === "confirmed" || statusLower === "paid") {
-      console.log("[webhook] Déjà confirmé/paid → stop (auto-message possible)");
+      console.log("[webhook] Déjà confirmé/paid → stop (auto-message/email possibles)");
 
+      // auto-message (non bloquant)
       try {
         const renterId = String((current as any).renter_id || "");
         const listingId = String((current as any).listing_id || "");
 
-        if (renterId && listingId) {
-          const { data: listing } = await admin
-            .from("listings")
-            .select("user_id")
-            .eq("id", listingId)
-            .maybeSingle();
-
+        if (renterId && listingId && bookingId) {
+          const { data: listing } = await admin.from("listings").select("user_id").eq("id", listingId).maybeSingle();
           const hostId = listing?.user_id ? String(listing.user_id) : "";
-
-          if (hostId && bookingId) {
-            const bookingIdStr: string = bookingId;
-            await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
+          if (hostId) {
+            await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
           }
         }
       } catch (e: any) {
         console.warn("[webhook] auto-message warn:", e?.message);
+      }
+
+      // email (non bloquant)
+      try {
+        const renterId = String((current as any).renter_id || "");
+        if (renterId && bookingId) {
+          await sendPaymentConfirmationEmail({ admin, renterId, bookingId });
+        }
+      } catch (e: any) {
+        console.warn("[webhook] email warn:", e?.message);
       }
 
       await admin
@@ -432,20 +534,11 @@ export async function POST(req: Request) {
       const renterId = String((updated as any).renter_id || "");
       const listingId = String((updated as any).listing_id || "");
 
-      if (renterId && listingId) {
-        const { data: listing, error: lErr } = await admin
-          .from("listings")
-          .select("user_id")
-          .eq("id", listingId)
-          .maybeSingle();
-
+      if (renterId && listingId && bookingId) {
+        const { data: listing, error: lErr } = await admin.from("listings").select("user_id").eq("id", listingId).maybeSingle();
         if (!lErr && listing?.user_id) {
           const hostId = String(listing.user_id);
-
-          if (bookingId) {
-            const bookingIdStr: string = bookingId;
-            await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
-          }
+          await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
         } else {
           console.warn("[webhook] auto-message: listing lookup failed", lErr?.message);
         }
@@ -454,7 +547,17 @@ export async function POST(req: Request) {
       console.warn("[webhook] auto-message warn:", e?.message);
     }
 
-    // E) Marquer l’event comme traité
+    // ✅ E) Email confirmation après paiement (non bloquant)
+    try {
+      const renterId = String((updated as any).renter_id || "");
+      if (renterId && bookingId) {
+        await sendPaymentConfirmationEmail({ admin, renterId, bookingId });
+      }
+    } catch (e: any) {
+      console.warn("[webhook] email warn:", e?.message);
+    }
+
+    // F) Marquer l’event comme traité
     await admin
       .from("stripe_events")
       .update({
@@ -470,14 +573,16 @@ export async function POST(req: Request) {
     console.error("[webhook] erreur interne", e?.message);
 
     try {
-      await admin
-        .from("stripe_events")
-        .update({
-          status: "error",
-          error: e?.message ?? "Erreur webhook.",
-          processed_at: new Date().toISOString(),
-        })
-        .eq("id", (e as any)?.event?.id ?? "");
+      if (event?.id) {
+        await admin
+          .from("stripe_events")
+          .update({
+            status: "error",
+            error: e?.message ?? "Erreur webhook.",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", event.id);
+      }
     } catch {}
 
     return j({ error: e?.message ?? "Erreur webhook." }, 500);

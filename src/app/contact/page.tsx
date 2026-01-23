@@ -15,8 +15,11 @@ export default function ContactPage() {
 
         <div style={{ marginTop: 10, fontWeight: 800, opacity: 0.9 }}>
           Email :{" "}
-          <a href="mailto:contact@bookinglight.com" style={{ fontWeight: 900, textDecoration: "underline" }}>
-            contact@bookinglight.com
+          <a
+            href="mailto:booking@lightbooker.com"
+            style={{ fontWeight: 900, textDecoration: "underline" }}
+          >
+            booking@lightbooker.com
           </a>
         </div>
 
