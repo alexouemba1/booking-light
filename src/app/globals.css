@@ -76,11 +76,18 @@ a{ color: inherit; }
   border-radius: 999px;
   font-weight: 800;
   font-size: 14px;
-  transition: transform .12s ease, background .12s ease;
+
+  /* micro animation */
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease, border-color .12s ease;
+  will-change: transform;
 }
 .bl-pill:hover{
   transform: translateY(-1px);
   background: var(--bl-soft);
+  border-color: rgba(11,18,32,.18);
+}
+.bl-pill:active{
+  transform: translateY(0px) scale(.98);
 }
 
 /* ===== Layout pour footer sticky-bas ===== */
@@ -93,7 +100,6 @@ a{ color: inherit; }
 /* ===== Page wrapper ===== */
 .bl-page{
   flex: 1;
-  /* garde ton padding/structure via .bl-container dans les pages */
 }
 
 /* ===== Hero ===== */
@@ -101,6 +107,9 @@ a{ color: inherit; }
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
+
+  /* apparition douce */
+  animation: blFadeUp .28s ease both;
 }
 
 .bl-hero-title{
@@ -127,6 +136,10 @@ a{ color: inherit; }
   border-radius: var(--bl-radius);
   padding: 18px;
   box-shadow: var(--bl-shadow);
+
+  /* micro animation */
+  animation: blFadeUp .34s ease both;
+  transform-origin: top center;
 }
 
 .bl-hero-card-title{
@@ -151,9 +164,15 @@ a{ color: inherit; }
   font-weight: 900;
   border: 1px solid rgba(31,111,235,.25);
   background: var(--bl-primary-soft);
+
+  transition: transform .12s ease, background .12s ease;
 }
 .bl-primary:hover{
   background: rgba(31,111,235,.18);
+  transform: translateY(-1px);
+}
+.bl-primary:active{
+  transform: translateY(0px) scale(.98);
 }
 
 /* ===== Alerts ===== */
@@ -179,6 +198,9 @@ a{ color: inherit; }
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
   margin-top: 12px;
+
+  /* apparition douce */
+  animation: blFadeUp .36s ease both;
 }
 
 .bl-card{
@@ -189,11 +211,18 @@ a{ color: inherit; }
   background: white;
   text-decoration: none;
   box-shadow: 0 8px 18px rgba(11,18,32,.06);
-  transition: transform .14s ease, box-shadow .14s ease;
+
+  /* micro animation */
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+  will-change: transform;
 }
 .bl-card:hover{
   transform: translateY(-2px);
   box-shadow: 0 14px 28px rgba(11,18,32,.10);
+  border-color: rgba(11,18,32,.16);
+}
+.bl-card:active{
+  transform: translateY(0px) scale(.99);
 }
 
 .bl-card-media{
@@ -210,6 +239,10 @@ a{ color: inherit; }
   height: 100%;
   object-fit: cover;
   display:block;
+  transition: transform .25s ease;
+}
+.bl-card:hover .bl-card-media img{
+  transform: scale(1.02);
 }
 
 .bl-price-chip{
@@ -241,6 +274,27 @@ a{ color: inherit; }
 .bl-card-cta{
   opacity: .85;
   font-weight: 800;
+}
+
+/* Mobile: 1 colonne, plus lisible + hero plus compact */
+@media (max-width: 520px){
+  .bl-container{ padding: 14px; }
+
+  .bl-h1{ font-size: 32px; }
+  .bl-hero-title{ gap: 10px; }
+
+  .bl-hero-card{ padding: 14px; }
+  .bl-hero-card-title{ font-size: 20px; }
+
+  .bl-grid{ grid-template-columns: 1fr; gap: 14px; }
+  .bl-card-media{ height: 190px; }
+
+  .bl-pill{ font-size: 13px; padding: 8px 10px; }
+}
+
+/* Tablette: 2 colonnes */
+@media (min-width: 521px) and (max-width: 860px){
+  .bl-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ===== Listing detail ===== */
@@ -292,6 +346,8 @@ a{ color: inherit; }
   border-radius: var(--bl-radius);
   padding: 16px;
   box-shadow: 0 10px 22px rgba(11,18,32,.06);
+
+  animation: blFadeUp .28s ease both;
 }
 
 .bl-panel-title{
@@ -321,6 +377,7 @@ a{ color: inherit; }
   border-radius: 12px;
   border: 1px solid var(--bl-border);
   outline: none;
+  transition: border-color .12s ease, box-shadow .12s ease;
 }
 .bl-input:focus{
   border-color: rgba(47,107,255,.35);
@@ -344,7 +401,9 @@ a{ color: inherit; }
   padding: 10px 14px;
   font-weight: 900;
   cursor: pointer;
+
   transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+  will-change: transform;
   margin-top: 12px;
 }
 
@@ -352,6 +411,10 @@ a{ color: inherit; }
   transform: translateY(-1px);
   background: var(--bl-soft);
   border-color: rgba(11,18,32,.18);
+}
+
+.bl-btn:active{
+  transform: translateY(0px) scale(.98);
 }
 
 .bl-btn-primary{
@@ -546,4 +609,25 @@ a{ color: inherit; }
 
 .bl-footer-muted{
   opacity: .75;
+}
+
+/* ===== Animations ===== */
+@keyframes blFadeUp{
+  from{
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to{
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibilité: si l'utilisateur préfère réduire les animations */
+@media (prefers-reduced-motion: reduce){
+  *{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

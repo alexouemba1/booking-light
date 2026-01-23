@@ -1,3 +1,4 @@
+// FILE: src/app/api/stripe/webhook/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -16,12 +17,8 @@ let stripeSingleton: Stripe | null = null;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    throw new Error("Config manquante: STRIPE_SECRET_KEY");
-  }
-  if (!stripeSingleton) {
-    stripeSingleton = new Stripe(key);
-  }
+  if (!key) throw new Error("Config manquante: STRIPE_SECRET_KEY");
+  if (!stripeSingleton) stripeSingleton = new Stripe(key);
   return stripeSingleton;
 }
 
@@ -31,6 +28,13 @@ function j(data: any, status = 200) {
 
 function asString(x: any) {
   return typeof x === "string" ? x : x == null ? "" : String(x);
+}
+
+function isExpired(expiresAt?: string | null) {
+  if (!expiresAt) return false;
+  const t = new Date(String(expiresAt)).getTime();
+  if (!Number.isFinite(t)) return false;
+  return t <= Date.now();
 }
 
 // ✅ Message automatique (modifiable)
@@ -47,7 +51,6 @@ async function maybeCreateAutoMessage(params: {
 }) {
   const { admin, bookingId, renterId, hostId } = params;
 
-  // Conversation déjà existante ? => stop
   const { data: existing, error: exErr } = await admin
     .from("messages")
     .select("id")
@@ -66,7 +69,6 @@ async function maybeCreateAutoMessage(params: {
 
   const nowIso = new Date().toISOString();
 
-  // Message envoyé par le renter -> lu côté renter, non lu côté host
   const payload = {
     booking_id: bookingId,
     sender_id: renterId,
@@ -77,7 +79,6 @@ async function maybeCreateAutoMessage(params: {
   } as any;
 
   const { error: insErr } = await admin.from("messages").insert([payload] as any);
-
   if (insErr) {
     console.warn("[webhook] auto-message insert failed:", insErr.message);
     return;
@@ -158,8 +159,15 @@ export async function POST(req: Request) {
   });
 
   if (evtInsertErr) {
-    console.log("[webhook] Event déjà traité (idempotence):", event.id, evtInsertErr.message);
-    return j({ ok: true, deduped: true }, 200);
+    // ✅ On ne “dedupe” QUE si c’est une duplication (unique violation)
+    const code = (evtInsertErr as any)?.code;
+    if (code === "23505") {
+      console.log("[webhook] Event déjà traité (idempotence):", event.id);
+      return j({ ok: true, deduped: true }, 200);
+    }
+
+    console.error("[webhook] stripe_events insert failed:", evtInsertErr.message, "code:", code);
+    return j({ error: "stripe_events insert failed" }, 500);
   }
 
   try {
@@ -218,7 +226,7 @@ export async function POST(req: Request) {
 
       const { data: b2, error: b2Err } = await admin
         .from("bookings")
-        .select("id,status")
+        .select("id,status,stripe_checkout_session_id")
         .eq("stripe_checkout_session_id", sessionId)
         .maybeSingle();
 
@@ -253,18 +261,13 @@ export async function POST(req: Request) {
       }
 
       bookingId = b2.id;
-      console.log(
-        "[webhook] bookingId trouvé via session.id:",
-        bookingId,
-        "status actuel:",
-        b2.status
-      );
+      console.log("[webhook] bookingId trouvé via session.id:", bookingId, "status actuel:", b2.status);
     }
 
-    // B) Charger booking (avec renter_id + listing_id pour auto-message)
+    // B) Charger booking (avec infos nécessaires)
     const { data: current, error: curErr } = await admin
       .from("bookings")
-      .select("id,status,payment_status,renter_id,listing_id")
+      .select("id,status,payment_status,renter_id,listing_id,expires_at,stripe_checkout_session_id")
       .eq("id", bookingId)
       .single();
 
@@ -291,9 +294,68 @@ export async function POST(req: Request) {
     const payLower = asString((current as any).payment_status).toLowerCase();
     const statusLower = asString(current.status).toLowerCase();
 
+    // ✅ Verrou 1: si booking annulée => on NE confirme pas
+    if (statusLower === "cancelled" || statusLower === "canceled") {
+      console.warn("[webhook] Booking annulée → on n’applique pas paid/confirmed", { bookingId });
+
+      await admin
+        .from("stripe_events")
+        .update({
+          status: "ignored",
+          error: "booking cancelled",
+          booking_id: bookingId,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", event.id);
+
+      return j({ ok: true, ignored: "booking cancelled" }, 200);
+    }
+
+    // ✅ Verrou 2: si option expirée côté serveur => on NE confirme pas
+    if (isExpired((current as any).expires_at)) {
+      console.warn("[webhook] Booking expirée côté serveur → on n’applique pas paid/confirmed", {
+        bookingId,
+        expires_at: (current as any).expires_at,
+      });
+
+      await admin
+        .from("stripe_events")
+        .update({
+          status: "ignored",
+          error: "booking expired (server-side)",
+          booking_id: bookingId,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", event.id);
+
+      return j({ ok: true, ignored: "booking expired" }, 200);
+    }
+
+    // ✅ Verrou 3: cohérence session ↔ booking (si déjà set et différent => on bloque)
+    const currentSessionId = asString((current as any).stripe_checkout_session_id).trim();
+    if (currentSessionId && currentSessionId !== sessionId) {
+      console.warn("[webhook] Mismatch stripe_checkout_session_id → on n’écrase pas", {
+        bookingId,
+        currentSessionId,
+        sessionId,
+      });
+
+      await admin
+        .from("stripe_events")
+        .update({
+          status: "error",
+          error: "stripe_checkout_session_id mismatch",
+          booking_id: bookingId,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", event.id);
+
+      return j({ error: "Session mismatch" }, 400);
+    }
+
     // ✅ Déjà confirmé/paid -> on ne retouche pas la booking
     // ✅ MAIS on peut quand même tenter l’auto-message si la conversation est vide
-    if (payLower === "paid" || statusLower === "confirmed") {
+    if (payLower === "paid" || statusLower === "confirmed" || statusLower === "paid") {
       console.log("[webhook] Déjà confirmé/paid → stop (auto-message possible)");
 
       try {
@@ -309,7 +371,6 @@ export async function POST(req: Request) {
 
           const hostId = listing?.user_id ? String(listing.user_id) : "";
 
-          // ✅ FIX TS: on "narrow" bookingId proprement
           if (hostId && bookingId) {
             const bookingIdStr: string = bookingId;
             await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
@@ -332,7 +393,6 @@ export async function POST(req: Request) {
     }
 
     // C) Update booking
-    // ✅ status = confirmed ; payment_status = paid ; expires_at=null
     const updatePayload: any = {
       status: "confirmed",
       payment_status: "paid",
@@ -347,9 +407,7 @@ export async function POST(req: Request) {
       .from("bookings")
       .update(updatePayload)
       .eq("id", bookingId)
-      .select(
-        "id,status,payment_status,paid_at,expires_at,stripe_checkout_session_id,renter_id,listing_id"
-      )
+      .select("id,status,payment_status,paid_at,expires_at,stripe_checkout_session_id,renter_id,listing_id")
       .single();
 
     console.log("[webhook] update result:", { upErr: upErr?.message, updated });
@@ -384,7 +442,6 @@ export async function POST(req: Request) {
         if (!lErr && listing?.user_id) {
           const hostId = String(listing.user_id);
 
-          // ✅ FIX TS: bookingId est toujours string|null ici, on narrow
           if (bookingId) {
             const bookingIdStr: string = bookingId;
             await maybeCreateAutoMessage({ admin, bookingId: bookingIdStr, renterId, hostId });
@@ -420,7 +477,7 @@ export async function POST(req: Request) {
           error: e?.message ?? "Erreur webhook.",
           processed_at: new Date().toISOString(),
         })
-        .eq("id", event.id);
+        .eq("id", (e as any)?.event?.id ?? "");
     } catch {}
 
     return j({ error: e?.message ?? "Erreur webhook." }, 500);

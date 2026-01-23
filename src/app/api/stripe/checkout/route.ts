@@ -64,6 +64,14 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
+    // ✅ 0) Vérifier le user depuis le token (et récupérer son id)
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    const authedUserId = userData?.user?.id ?? null;
+
+    if (userErr || !authedUserId) {
+      return j({ error: "Non authentifié (token invalide)." }, 401);
+    }
+
     // 1) Lire la réservation (avec expires_at + payment_status)
     const { data: booking, error: bErr } = await admin
       .from("bookings")
@@ -73,15 +81,28 @@ export async function POST(req: Request) {
 
     if (bErr || !booking) return j({ error: "Réservation introuvable." }, 404);
 
-    // 2) Refuser si expirée / annulée / payée
+    // ✅ 1bis) Sécurité: interdire de payer la réservation de quelqu’un d’autre
+    if (String(booking.renter_id) !== String(authedUserId)) {
+      return j({ error: "Accès refusé (réservation d’un autre utilisateur)." }, 403);
+    }
+
+    // 2) Refuser si expirée / annulée / payée / statut non compatible
     const statusKey = String(booking.status || "").toLowerCase();
     const payKey = String(booking.payment_status || "unpaid").toLowerCase();
 
-    if (statusKey === "paid" || payKey === "paid") {
-      return j({ error: "Réservation déjà payée." }, 400);
+    // ✅ Anti double paiement (tu demandais exactement ça)
+    if (payKey === "paid" || statusKey === "paid" || statusKey === "confirmed") {
+      return j({ error: "Cette réservation est déjà payée." }, 400);
     }
-    if (statusKey === "cancelled") {
+
+    if (statusKey === "cancelled" || statusKey === "canceled") {
       return j({ error: "Cette réservation est annulée (option expirée)." }, 400);
+    }
+
+    // ✅ Optionnel (mais recommandé) : on ne paie que si la réservation est bien en "pending"
+    // (si tu as un autre flux, dis-moi et on adapte)
+    if (statusKey !== "pending") {
+      return j({ error: "Cette réservation n’est pas en attente de paiement." }, 400);
     }
 
     // Expiration côté serveur (double sécurité)
@@ -151,28 +172,32 @@ export async function POST(req: Request) {
     const stripe = getStripe();
 
     // 7) Stripe Checkout + split Connect
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "eur",
-            unit_amount: total,
-            product_data: {
-              name: listing.title ? `Réservation — ${listing.title}` : `Réservation ${bookingId}`,
+    // ✅ IMPORTANT : idempotencyKey => si double clic / retry réseau => pas de double session
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "eur",
+              unit_amount: total,
+              product_data: {
+                name: listing.title ? `Réservation — ${listing.title}` : `Réservation ${bookingId}`,
+              },
             },
           },
+        ],
+        metadata: { bookingId },
+        payment_intent_data: {
+          application_fee_amount: platformFee,
+          transfer_data: { destination: destinationAccount },
         },
-      ],
-      metadata: { bookingId },
-      payment_intent_data: {
-        application_fee_amount: platformFee,
-        transfer_data: { destination: destinationAccount },
       },
-    });
+      { idempotencyKey: `checkout_${bookingId}` }
+    );
 
     // 8) Stocker session id
     await admin

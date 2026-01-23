@@ -26,11 +26,10 @@ export const metadata: Metadata = {
   applicationName: "Booking Light",
 
   icons: {
-    // ✅ On met PNG + ICO (fallback). Certains navigateurs/robots aiment le .ico.
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon.ico" }, // fallback
+      { url: "/favicon.ico" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: "/favicon.ico",
@@ -116,8 +115,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div>© {new Date().getFullYear()} Booking Light</div>
               <div className="bl-footer-muted">
                 Support :{" "}
-                <a className="bl-footer-link" href="mailto:contact@bookinglight.com">
-                  contact@bookinglight.com
+                <a className="bl-footer-link" href="mailto:contact@lightbooker.com">
+                  contact@lightbooker.com
                 </a>
               </div>
             </div>

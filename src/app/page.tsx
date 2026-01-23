@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { publicListingImageUrl } from "@/lib/storage";
 
@@ -27,18 +27,66 @@ function getErrorMessage(e: unknown) {
   return "Erreur";
 }
 
+function osmEmbedUrl(lat: number, lon: number, zoomRadiusDeg = 0.12) {
+  const left = lon - zoomRadiusDeg;
+  const right = lon + zoomRadiusDeg;
+  const bottom = lat - zoomRadiusDeg;
+  const top = lat + zoomRadiusDeg;
+
+  const bbox = `${left},${bottom},${right},${top}`
+    .split(",")
+    .map((x) => encodeURIComponent(String(x)))
+    .join("%2C");
+
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${encodeURIComponent(
+    `${lat},${lon}`
+  )}`;
+}
+
+async function geocodeCity(city: string): Promise<{ lat: number; lon: number } | null> {
+  const q = city.trim();
+  if (!q) return null;
+
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return null;
+
+  const data: any = await res.json().catch(() => null);
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first?.lat || !first?.lon) return null;
+
+  const lat = Number(first.lat);
+  const lon = Number(first.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  return { lat, lon };
+}
+
 export default function HomePage() {
   const [items, setItems] = useState<ListingHome[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Filtres (UI)
   const [city, setCity] = useState("");
-  const [startDate, setStartDate] = useState(""); // YYYY-MM-DD
-  const [endDate, setEndDate] = useState(""); // YYYY-MM-DD
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [guests, setGuests] = useState<number>(1);
 
-  async function search(next?: { city?: string; startDate?: string; endDate?: string; guests?: number }) {
+  const [mapTitle, setMapTitle] = useState("Carte (aperçu)");
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number }>({ lat: 48.8566, lon: 2.3522 });
+
+  const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
+
+  async function search(next?: {
+    city?: string;
+    startDate?: string;
+    endDate?: string;
+    guests?: number;
+  }) {
     const c = (next?.city ?? city).trim();
     const s = (next?.startDate ?? startDate).trim();
     const e = (next?.endDate ?? endDate).trim();
@@ -54,20 +102,12 @@ export default function HomePage() {
       sp.set("guests", String(next?.guests ?? guests ?? 1));
 
       const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
-      const json: unknown = await res.json();
+      const json: any = await res.json();
 
-      if (!res.ok) {
-        const msg =
-          typeof json === "object" && json && "error" in json
-            ? String((json as { error?: unknown }).error ?? "Erreur recherche")
-            : "Erreur recherche";
-        throw new Error(msg);
-      }
+      if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
 
-      const itemsValue =
-        typeof json === "object" && json && "items" in json ? (json as { items?: unknown }).items : [];
-      setItems((itemsValue ?? []) as ListingHome[]);
-    } catch (e: unknown) {
+      setItems(json?.items ?? []);
+    } catch (e) {
       setErrorMsg(getErrorMessage(e));
       setItems([]);
     } finally {
@@ -80,9 +120,37 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onSubmit(e: React.FormEvent) {
+  async function updateMapForCity(cityValue: string) {
+    const c = cityValue.trim();
+    setMapError(null);
+
+    if (!c) {
+      setMapTitle("Carte (aperçu)");
+      setMapCenter({ lat: 48.8566, lon: 2.3522 });
+      return;
+    }
+
+    setMapLoading(true);
+    setMapTitle(`Carte — ${c}`);
+
+    try {
+      const geo = await geocodeCity(c);
+      if (!geo) {
+        setMapError("Ville introuvable. Essaie avec un nom plus précis.");
+        setMapLoading(false);
+        return;
+      }
+      setMapCenter({ lat: geo.lat, lon: geo.lon });
+    } catch (e: any) {
+      setMapError(e?.message ?? "Erreur carte.");
+    } finally {
+      setMapLoading(false);
+    }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    search();
+    await Promise.all([search(), updateMapForCity(city)]);
   }
 
   function onReset() {
@@ -90,6 +158,10 @@ export default function HomePage() {
     setStartDate("");
     setEndDate("");
     setGuests(1);
+    setMapError(null);
+    setMapLoading(false);
+    setMapTitle("Carte (aperçu)");
+    setMapCenter({ lat: 48.8566, lon: 2.3522 });
     search({ city: "", startDate: "", endDate: "", guests: 1 });
   }
 
@@ -106,16 +178,15 @@ export default function HomePage() {
         </div>
 
         <div className="bl-hero-card">
-          <div className="bl-hero-card-title">Trouve un endroit où poser tes valises.</div>
-          <div className="bl-hero-card-sub">Recherche une ville, puis clique sur une carte pour voir le détail et réserver.</div>
+          <div className="bl-hero-card-title">Trouve un endroit où poser tes valises</div>
+          <div className="bl-hero-card-sub">Recherche une ville, consulte la carte, puis réserve.</div>
 
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.4fr 1fr 1fr 0.9fr auto auto",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: 10,
-                alignItems: "end",
               }}
             >
               <div>
@@ -124,7 +195,7 @@ export default function HomePage() {
                   className="bl-input"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Ex : Paris, Marseille…"
+                  placeholder="Ex : Paris"
                 />
               </div>
 
@@ -149,16 +220,16 @@ export default function HomePage() {
                 />
               </div>
 
-              <button type="submit" className={loading ? "bl-btn bl-btn-disabled" : "bl-btn bl-btn-primary"} disabled={loading}>
+              <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>
                 {loading ? "Recherche…" : "Rechercher"}
               </button>
 
-              <button type="button" className="bl-btn" onClick={onReset} disabled={loading}>
+              <button type="button" className="bl-btn" onClick={onReset} disabled={loading} style={{ width: "100%" }}>
                 Réinitialiser
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Link className="bl-btn bl-btn-primary" href="/publish">
                 + Publier une annonce
               </Link>
@@ -167,6 +238,30 @@ export default function HomePage() {
               </Link>
             </div>
           </form>
+
+          <div
+            style={{
+              marginTop: 14,
+              borderRadius: 14,
+              overflow: "hidden",
+              border: "1px solid rgba(11,18,32,.12)",
+            }}
+          >
+            <div style={{ padding: 10, fontWeight: 700, display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <span>{mapTitle}</span>
+              <span style={{ opacity: 0.7, fontSize: 13 }}>{mapLoading ? "Mise à jour…" : ""}</span>
+            </div>
+
+            {mapError && (
+              <div style={{ padding: "0 10px 10px 10px" }}>
+                <div className="bl-alert bl-alert-error">
+                  <strong>Carte :</strong> {mapError}
+                </div>
+              </div>
+            )}
+
+            <iframe title="Carte" src={mapSrc} style={{ width: "100%", height: 260, border: 0, display: "block" }} loading="lazy" />
+          </div>
         </div>
       </div>
 
@@ -199,18 +294,24 @@ export default function HomePage() {
                   </div>
 
                   <div className="bl-card-body">
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", justifyContent: "space-between" }}>
-                      <div className="bl-card-title" style={{ lineHeight: 1.15 }}>
-                        {l.title}
-                      </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <div className="bl-card-title">{l.title}</div>
 
                       <div
                         style={{
                           flex: "0 0 auto",
+                          alignSelf: "flex-start",
                           whiteSpace: "nowrap",
                           padding: "6px 10px",
                           borderRadius: 999,
-                          fontWeight: 950,
+                          fontWeight: 700,
                           fontSize: 13,
                           border: "1px solid rgba(11,18,32,.12)",
                           background: "rgba(47,107,255,.10)",
@@ -221,11 +322,11 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="bl-card-meta" style={{ marginTop: 8 }}>
+                    <div className="bl-card-meta" style={{ marginTop: 6 }}>
                       {l.city ?? "Ville ?"} · {l.kind ?? "Type ?"}
                     </div>
 
-                    <div className="bl-card-cta" style={{ marginTop: 10 }}>
+                    <div className="bl-card-cta" style={{ marginTop: 8 }}>
                       Voir détails & réserver →
                     </div>
                   </div>

@@ -39,6 +39,9 @@ export default function TopbarClient() {
   const [loadingBadge, setLoadingBadge] = useState(false);
   const [unreadTotal, setUnreadTotal] = useState<number>(0);
 
+  // Mobile menu
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // anti-spam refresh
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,12 +84,10 @@ export default function TopbarClient() {
       const parsed = parseJsonSafe(raw);
 
       if (!parsed || typeof parsed !== "object") {
-        // pas bloquant
         return;
       }
 
       if (!res.ok) {
-        // pas bloquant
         return;
       }
 
@@ -200,6 +201,11 @@ export default function TopbarClient() {
 
   const showBadge = !checking && uid && unreadTotal > 0;
 
+  // Ferme le menu mobile quand on change de page
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
   return (
     <header className="bl-topbar">
       <div className="bl-topbar-inner">
@@ -211,8 +217,22 @@ export default function TopbarClient() {
           </Link>
         </div>
 
-        {/* NAVIGATION */}
-        <nav className="bl-nav">
+        {/* Bouton menu (mobile) */}
+        <div className="bl-topbar-mobile">
+          <button
+            type="button"
+            className="bl-pill"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-controls="bl-mobile-nav"
+            style={{ border: "1px solid rgba(11,18,32,.10)", background: "white" }}
+          >
+            Menu {menuOpen ? "✕" : "☰"}
+          </button>
+        </div>
+
+        {/* NAVIGATION (desktop) */}
+        <nav className="bl-nav bl-nav-desktop" aria-label="Top navigation">
           <Link className="bl-pill" href="/">
             Accueil
           </Link>
@@ -229,7 +249,6 @@ export default function TopbarClient() {
           {uid && (
             <Link className="bl-pill" href="/messages" style={{ position: "relative" }}>
               Messages
-
               {showBadge && (
                 <span
                   style={{
@@ -271,6 +290,79 @@ export default function TopbarClient() {
           )}
         </nav>
       </div>
+
+      {/* NAVIGATION (mobile dropdown) */}
+      {menuOpen && (
+        <div
+          id="bl-mobile-nav"
+          style={{
+            borderTop: "1px solid rgba(11,18,32,.08)",
+            background: "rgba(255,255,255,.92)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <div style={{ maxWidth: 1040, margin: "0 auto", padding: "10px 16px", display: "grid", gap: 10 }}>
+            <Link className="bl-pill" href="/">
+              Accueil
+            </Link>
+            <Link className="bl-pill" href="/publish">
+              Publier
+            </Link>
+            <Link className="bl-pill" href="/my-listings">
+              Mes annonces
+            </Link>
+            <Link className="bl-pill" href="/my-bookings">
+              Mes réservations
+            </Link>
+
+            {uid && (
+              <Link className="bl-pill" href="/messages">
+                Messages
+                {showBadge ? ` (${unreadTotal})` : ""}
+              </Link>
+            )}
+
+            {!uid ? (
+              <Link className="bl-pill" href="/auth" aria-current={isAuthPage ? "page" : undefined}>
+                Connexion
+              </Link>
+            ) : (
+              <button
+                className="bl-pill"
+                onClick={logout}
+                style={{ cursor: "pointer", border: "1px solid rgba(11,18,32,.10)", background: "white" }}
+                type="button"
+              >
+                Déconnexion
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Styles inline simples pour gérer desktop/mobile sans toucher à ton CSS existant */}
+      <style jsx global>{`
+        .bl-topbar-mobile {
+          display: none;
+        }
+        .bl-nav-desktop {
+          display: flex;
+        }
+        @media (max-width: 720px) {
+          .bl-topbar-inner {
+            padding: 12px 16px;
+          }
+          .bl-topbar-mobile {
+            display: block;
+          }
+          .bl-nav-desktop {
+            display: none;
+          }
+          .bl-brand img {
+            height: 40px !important;
+          }
+        }
+      `}</style>
     </header>
   );
 }

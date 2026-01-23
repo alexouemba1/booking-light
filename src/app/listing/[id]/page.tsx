@@ -12,7 +12,6 @@ import { publicListingImageUrl } from "@/lib/storage";
 ======================= */
 
 function getSb() {
-  // Ton projet a supabase possiblement null => on protège partout
   if (!supabase) return null;
   return supabase;
 }
@@ -31,7 +30,6 @@ type Listing = {
   billing_unit: "night" | "day" | "week";
   cover_image_path: string | null;
 
-  // ✅ Stats fiables (maintenues côté DB)
   rating_avg: number;
   rating_count: number;
 };
@@ -107,12 +105,10 @@ function isExpired(expiresAt?: string | null) {
   return t <= Date.now();
 }
 
-// overlap si existing.start < wantedEnd ET existing.end > wantedStart
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
   return aStart < bEnd && aEnd > bStart;
 }
 
-// end_date exclusive (modèle actuel)
 function endExclusive(dateIso: string) {
   return toDate(dateIso);
 }
@@ -169,7 +165,7 @@ function Badge({
 }
 
 /* =======================
-   Trust row (badge confiance)
+   Trust row
 ======================= */
 
 function TrustRow() {
@@ -320,7 +316,7 @@ export default function ListingPage() {
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
 
   /* =======================
-     Lightbox (agrandissement)
+     Lightbox
   ======================= */
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -403,7 +399,7 @@ export default function ListingPage() {
   }, [startDate, endDate]);
 
   /* =======================
-     Load listing + images (+ stats)
+     Load listing + images
   ======================= */
   useEffect(() => {
     let alive = true;
@@ -844,7 +840,8 @@ export default function ListingPage() {
 
   return (
     <main className="bl-container">
-      <div className="bl-detail-top">
+      {/* Top actions */}
+      <div className="bl-detail-top" style={{ flexWrap: "wrap" }}>
         <Link className="bl-link" href="/">
           ← Retour
         </Link>
@@ -853,268 +850,261 @@ export default function ListingPage() {
         </Link>
       </div>
 
-      <h1 className="bl-h1" style={{ marginTop: 12 }}>
-        {listing.title}
-      </h1>
+      {/* Title / Meta */}
+      <div style={{ marginTop: 12 }}>
+        <h1 className="bl-h1" style={{ marginTop: 0 }}>
+          {listing.title}
+        </h1>
 
-      <div className="bl-sub">
-        {listing.city} · {listing.kind}
-      </div>
-
-      {/* Prix + avis (stats fiables DB) */}
-      <div
-        style={{
-          marginTop: 10,
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <div className="bl-price-line" style={{ marginTop: 0 }}>
-          {formatPrice(listing.price_cents, listing.billing_unit)}
+        <div className="bl-sub">
+          {listing.city} · {listing.kind}
         </div>
 
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "6px 10px",
-            borderRadius: 999,
-            border: "1px solid rgba(0,0,0,0.10)",
-            background: "rgba(0,0,0,0.02)",
-          }}
-        >
-          <StarsInline value={ratingAvg} count={ratingCount} />
+        <div className="bl-priceRow">
+          <div className="bl-price-line" style={{ marginTop: 0 }}>
+            {formatPrice(listing.price_cents, listing.billing_unit)}
+          </div>
 
-          <button
-            type="button"
-            className="bl-btn"
-            style={{ marginTop: 0, height: 34, padding: "0 10px", borderRadius: 999, fontWeight: 900 }}
-            onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            title="Voir les avis"
-          >
-            Voir
-          </button>
+          <div className="bl-ratingPill">
+            <StarsInline value={ratingAvg} count={ratingCount} />
+            <button
+              type="button"
+              className="bl-btn"
+              style={{ marginTop: 0, height: 34, padding: "0 10px", borderRadius: 999, fontWeight: 900 }}
+              onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              title="Voir les avis"
+            >
+              Voir
+            </button>
+          </div>
         </div>
       </div>
 
       {successMsg && <div className="bl-alert bl-alert-success">{successMsg}</div>}
       {errorMsg && <div className="bl-alert bl-alert-error">{errorMsg}</div>}
 
-      {/* COVER (cliquable) */}
-      <div className="bl-cover" style={{ marginTop: 16 }}>
-        {coverUrl ? (
-          <div className="bl-zoomable" style={{ position: "relative" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverUrl}
-              alt=""
-              className="bl-cover-img"
-              style={{ cursor: "zoom-in" }}
-              onClick={() => cover && openLightboxAtPath(cover)}
-              title="Cliquer pour agrandir"
-            />
+      {/* Main layout: 1 col mobile, 2 cols desktop */}
+      <div className="bl-listing-layout">
+        {/* LEFT: content */}
+        <div className="bl-listing-left">
+          {/* COVER */}
+          <div className="bl-cover" style={{ marginTop: 16 }}>
+            {coverUrl ? (
+              <div className="bl-zoomable" style={{ position: "relative" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverUrl}
+                  alt=""
+                  className="bl-cover-img"
+                  style={{ cursor: "zoom-in" }}
+                  onClick={() => cover && openLightboxAtPath(cover)}
+                  title="Cliquer pour agrandir"
+                />
 
-            <div className="bl-zoom-corner" onClick={() => cover && openLightboxAtPath(cover)} title="Agrandir" role="button">
-              Agrandir
-            </div>
-          </div>
-        ) : (
-          <div className="bl-cover-empty">Pas d’image</div>
-        )}
-      </div>
-
-      {/* GALERIE (cliquable) */}
-      {images.length > 0 && (
-        <section style={{ marginTop: 18 }}>
-          <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span>Galerie</span>
-            {isOwner && (
-              <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>Astuce : clique “Définir comme couverture”.</span>
+                <div className="bl-zoom-corner" onClick={() => cover && openLightboxAtPath(cover)} title="Agrandir" role="button">
+                  Agrandir
+                </div>
+              </div>
+            ) : (
+              <div className="bl-cover-empty">Pas d’image</div>
             )}
           </div>
 
-          <div className="bl-gallery" style={{ marginTop: 10 }}>
-            {images.map((img) => {
-              const src = publicListingImageUrl(img.path);
-              const isCover = listing.cover_image_path === img.path;
-              const savingThis = coverSaving === img.path;
+          {/* GALERIE */}
+          {images.length > 0 && (
+            <section style={{ marginTop: 18 }}>
+              <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <span>Galerie</span>
+                {isOwner && (
+                  <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>Astuce : clique “Définir comme couverture”.</span>
+                )}
+              </div>
 
-              return (
-                <div key={img.id} className="bl-shot">
-                  <div style={{ position: "relative" }} className="bl-zoomable">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      className="bl-shot-img"
-                      style={{ cursor: "zoom-in" }}
-                      onClick={() => openLightboxAtPath(img.path)}
-                      title="Cliquer pour agrandir"
-                    />
+              <div className="bl-gallery" style={{ marginTop: 10 }}>
+                {images.map((img) => {
+                  const src = publicListingImageUrl(img.path);
+                  const isCover = listing.cover_image_path === img.path;
+                  const savingThis = coverSaving === img.path;
 
-                    <div className="bl-zoom-corner" onClick={() => openLightboxAtPath(img.path)} title="Agrandir" role="button">
-                      Agrandir
+                  return (
+                    <div key={img.id} className="bl-shot">
+                      <div style={{ position: "relative" }} className="bl-zoomable">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt=""
+                          className="bl-shot-img"
+                          style={{ cursor: "zoom-in" }}
+                          onClick={() => openLightboxAtPath(img.path)}
+                          title="Cliquer pour agrandir"
+                        />
+
+                        <div className="bl-zoom-corner" onClick={() => openLightboxAtPath(img.path)} title="Agrandir" role="button">
+                          Agrandir
+                        </div>
+                      </div>
+
+                      <div className="bl-shot-bar" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <div className="bl-shot-tag">{isCover ? "Couverture" : `Image ${img.position}`}</div>
+
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={() => setAsCover(img.path)}
+                            disabled={isCover || !!coverSaving}
+                            className="bl-btn"
+                            style={{
+                              marginLeft: "auto",
+                              borderRadius: 12,
+                              padding: "8px 10px",
+                              fontWeight: 900,
+                              opacity: isCover ? 0.55 : 1,
+                              cursor: isCover ? "not-allowed" : "pointer",
+                            }}
+                            title={isCover ? "Déjà la couverture" : "Définir cette image comme couverture"}
+                          >
+                            {savingThis ? "Sauvegarde…" : isCover ? "Couverture" : "Définir comme couverture"}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="bl-shot-bar" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <div className="bl-shot-tag">{isCover ? "Couverture" : `Image ${img.position}`}</div>
-
-                    {isOwner && (
-                      <button
-                        type="button"
-                        onClick={() => setAsCover(img.path)}
-                        disabled={isCover || !!coverSaving}
-                        className="bl-btn"
-                        style={{
-                          marginLeft: "auto",
-                          borderRadius: 12,
-                          padding: "8px 10px",
-                          fontWeight: 900,
-                          opacity: isCover ? 0.55 : 1,
-                          cursor: isCover ? "not-allowed" : "pointer",
-                        }}
-                        title={isCover ? "Déjà la couverture" : "Définir cette image comme couverture"}
-                      >
-                        {savingThis ? "Sauvegarde…" : isCover ? "Couverture" : "Définir comme couverture"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Booking */}
-      <section ref={bookingPanelRef as any} className="bl-panel" style={{ marginTop: 18 }}>
-        <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Réserver</span>
-          <button className="bl-btn" onClick={refreshAvailability} style={{ fontWeight: 800 }}>
-            Rafraîchir
-          </button>
-        </div>
-
-        <TrustRow />
-
-        <div className="bl-two">
-          <div>
-            <label className="bl-label">Début</label>
-            <input className="bl-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="bl-label">Fin</label>
-            <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-        </div>
-
-        {totalPreview !== null && (
-          <div className="bl-total" style={{ marginTop: 8 }}>
-            Total estimé : {euros(totalPreview)}
-          </div>
-        )}
-
-        {chosenDatesBlockReason && (
-          <div className="bl-alert" style={{ marginTop: 10 }}>
-            <strong>Indisponible :</strong> {chosenDatesBlockReason}
-          </div>
-        )}
-
-        <button
-          onClick={bookNow}
-          disabled={bookingLoading || !canBook}
-          className={bookingLoading || !canBook ? "bl-btn bl-btn-disabled" : "bl-btn bl-btn-primary"}
-          title={
-            isOwner
-              ? "Tu ne peux pas réserver ta propre annonce"
-              : chosenDatesBlockReason
-              ? chosenDatesBlockReason
-              : "Créer une réservation"
-          }
-          style={{ width: "100%", marginTop: 10, fontWeight: 900 }}
-        >
-          {bookingLoading
-            ? "Réservation…"
-            : isOwner
-            ? "Réservation impossible (propriétaire)"
-            : !canBook
-            ? "Dates indisponibles"
-            : "Réserver"}
-        </button>
-
-        {createdBookingId && (
-          <div style={{ marginTop: 12 }}>
-            <Link href={`/my-bookings?focus=${encodeURIComponent(createdBookingId)}`}>
-              <button className="bl-btn bl-btn-primary" style={{ width: "100%", fontWeight: 900 }}>
-                Payer maintenant
-              </button>
-            </Link>
-          </div>
-        )}
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <strong>Dates indisponibles</strong>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>Auto-refresh 20s</span>
-          </div>
-
-          {ranges.length === 0 ? (
-            <div style={{ opacity: 0.8 }}>Aucune (pour l’instant).</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {ranges.map((r, i) => {
-                const st = String(r.status || "").toLowerCase();
-
-                let right: React.ReactNode = <Badge tone="neutral">{st}</Badge>;
-
-                if (st === "paid" || st === "confirmed") right = <Badge tone="danger">Indisponible</Badge>;
-
-                if (st === "pending") {
-                  if (r.expires_at) {
-                    const exp = new Date(String(r.expires_at)).getTime();
-                    const remaining = exp - nowTick;
-                    if (Number.isFinite(remaining) && remaining > 0) {
-                      right = <Badge tone="warning">Option (expire {msToMmSs(remaining)})</Badge>;
-                    } else {
-                      right = <Badge tone="warning">Option expirée (libération…)</Badge>;
-                    }
-                  } else {
-                    right = <Badge tone="warning">Option</Badge>;
-                  }
-                }
-
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      background: "rgba(0,0,0,0.02)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>
-                      {formatDateFR(r.start_date)} → {formatDateFR(r.end_date)}
-                    </div>
-                    {right}
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </section>
           )}
         </div>
-      </section>
+
+        {/* RIGHT: booking (sticky desktop) */}
+        <div className="bl-listing-right">
+          <section ref={bookingPanelRef as any} className="bl-panel bl-booking-sticky" style={{ marginTop: 18 }}>
+            <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <span>Réserver</span>
+              <button className="bl-btn" onClick={refreshAvailability} style={{ fontWeight: 800 }}>
+                Rafraîchir
+              </button>
+            </div>
+
+            <TrustRow />
+
+            <div className="bl-two">
+              <div>
+                <label className="bl-label">Début</label>
+                <input className="bl-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="bl-label">Fin</label>
+                <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+            </div>
+
+            {totalPreview !== null && (
+              <div className="bl-total" style={{ marginTop: 8 }}>
+                Total estimé : {euros(totalPreview)}
+              </div>
+            )}
+
+            {chosenDatesBlockReason && (
+              <div className="bl-alert" style={{ marginTop: 10 }}>
+                <strong>Indisponible :</strong> {chosenDatesBlockReason}
+              </div>
+            )}
+
+            <button
+              onClick={bookNow}
+              disabled={bookingLoading || !canBook}
+              className={bookingLoading || !canBook ? "bl-btn bl-btn-disabled" : "bl-btn bl-btn-primary"}
+              title={
+                isOwner
+                  ? "Tu ne peux pas réserver ta propre annonce"
+                  : chosenDatesBlockReason
+                  ? chosenDatesBlockReason
+                  : "Créer une réservation"
+              }
+              style={{ width: "100%", marginTop: 10, fontWeight: 900 }}
+            >
+              {bookingLoading
+                ? "Réservation…"
+                : isOwner
+                ? "Réservation impossible (propriétaire)"
+                : !canBook
+                ? "Dates indisponibles"
+                : "Réserver"}
+            </button>
+
+            {createdBookingId && (
+              <div style={{ marginTop: 12 }}>
+                <Link href={`/my-bookings?focus=${encodeURIComponent(createdBookingId)}`}>
+                  <button className="bl-btn bl-btn-primary" style={{ width: "100%", fontWeight: 900 }}>
+                    Payer maintenant
+                  </button>
+                </Link>
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+                <strong>Dates indisponibles</strong>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>Auto-refresh 20s</span>
+              </div>
+
+              {ranges.length === 0 ? (
+                <div style={{ opacity: 0.8 }}>Aucune (pour l’instant).</div>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {ranges.map((r, i) => {
+                    const st = String(r.status || "").toLowerCase();
+
+                    let right: React.ReactNode = <Badge tone="neutral">{st}</Badge>;
+
+                    if (st === "paid" || st === "confirmed") right = <Badge tone="danger">Indisponible</Badge>;
+
+                    if (st === "pending") {
+                      if (r.expires_at) {
+                        const exp = new Date(String(r.expires_at)).getTime();
+                        const remaining = exp - nowTick;
+                        if (Number.isFinite(remaining) && remaining > 0) {
+                          right = <Badge tone="warning">Option (expire {msToMmSs(remaining)})</Badge>;
+                        } else {
+                          right = <Badge tone="warning">Option expirée (libération…)</Badge>;
+                        }
+                      } else {
+                        right = <Badge tone="warning">Option</Badge>;
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          border: "1px solid rgba(0,0,0,0.08)",
+                          background: "rgba(0,0,0,0.02)",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ fontWeight: 900 }}>
+                          {formatDateFR(r.start_date)} → {formatDateFR(r.end_date)}
+                        </div>
+                        {right}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
 
       {/* REVIEWS */}
       <section id="reviews" ref={reviewsRef as any} className="bl-panel" style={{ marginTop: 18 }}>
-        <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <span>Avis</span>
 
           <button
@@ -1266,7 +1256,7 @@ export default function ListingPage() {
               gap: 10,
             }}
           >
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
               <button
                 className="bl-lightbox-close"
                 onClick={closeLightbox}
@@ -1287,7 +1277,7 @@ export default function ListingPage() {
                 {lightboxIndex + 1} / {lightboxPaths.length}
               </div>
 
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   onClick={goPrev}
                   title="Précédent (←)"
@@ -1338,6 +1328,59 @@ export default function ListingPage() {
           </div>
         </div>
       )}
+
+      {/* Page-specific responsive helpers (no global CSS changes needed) */}
+      <style jsx global>{`
+        .bl-priceRow {
+          margin-top: 10px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .bl-ratingPill {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          background: rgba(0, 0, 0, 0.02);
+        }
+
+        .bl-listing-layout {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .bl-booking-sticky {
+          position: static;
+        }
+
+        @media (min-width: 980px) {
+          .bl-listing-layout {
+            grid-template-columns: 1.25fr 0.75fr;
+            align-items: start;
+            gap: 18px;
+          }
+          .bl-booking-sticky {
+            position: sticky;
+            top: 86px;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .bl-ratingPill {
+            width: 100%;
+            justify-content: space-between;
+          }
+          .bl-priceRow {
+            gap: 10px;
+          }
+        }
+      `}</style>
     </main>
   );
 }
