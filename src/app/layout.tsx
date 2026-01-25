@@ -5,6 +5,7 @@ import "./styles/zoom.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Script from "next/script"; // ✅ Google Analytics
 import TopbarClient from "@/components/TopbarClient";
 
 const SITE_URL =
@@ -67,6 +68,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
+      <head>
+        {/* ================= Google Analytics ================= */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga4" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9TRP7B6V1M');
+          `}
+        </Script>
+        {/* =================================================== */}
+      </head>
+
       <body className="bl-body">
         <TopbarClient />
 
