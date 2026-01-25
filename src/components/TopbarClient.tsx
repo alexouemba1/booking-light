@@ -207,101 +207,53 @@ export default function TopbarClient() {
   }, [pathname]);
 
   return (
-    <header className="bl-topbar">
-      <div className="bl-topbar-inner">
-        {/* LOGO */}
-        <div className="bl-brand">
-          <Link className="bl-brand-link" href="/" style={{ display: "flex", alignItems: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-booking-light.png" alt="Booking Light" style={{ height: 48 }} />
-          </Link>
-        </div>
-
-        {/* Bouton menu (mobile) */}
-        <div className="bl-topbar-mobile">
-          <button
-            type="button"
-            className="bl-pill"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-            aria-controls="bl-mobile-nav"
-            style={{ border: "1px solid rgba(11,18,32,.10)", background: "white" }}
-          >
-            Menu {menuOpen ? "✕" : "☰"}
-          </button>
-        </div>
-
-        {/* NAVIGATION (desktop) */}
-        <nav className="bl-nav bl-nav-desktop" aria-label="Top navigation">
-          <Link className="bl-pill" href="/">
-            Accueil
-          </Link>
-          <Link className="bl-pill" href="/publish">
-            Publier
-          </Link>
-          <Link className="bl-pill" href="/my-listings">
-            Mes annonces
-          </Link>
-          <Link className="bl-pill" href="/my-bookings">
-            Mes réservations
-          </Link>
-
-          {uid && (
-            <Link className="bl-pill" href="/messages" style={{ position: "relative" }}>
-              Messages
-              {showBadge && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minWidth: 22,
-                    height: 22,
-                    padding: "0 7px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 900,
-                    background: "rgba(17,24,39,1)",
-                    color: "white",
-                    opacity: loadingBadge ? 0.65 : 1,
-                  }}
-                  title="Messages non lus"
-                >
-                  {unreadTotal}
-                </span>
-              )}
-            </Link>
-          )}
-
-          {!uid ? (
-            <Link className="bl-pill" href="/auth" aria-current={isAuthPage ? "page" : undefined}>
-              Connexion
-            </Link>
-          ) : (
-            <button
-              className="bl-pill"
-              onClick={logout}
-              style={{ cursor: "pointer", border: "none", background: "transparent" }}
-              type="button"
-            >
-              Déconnexion
-            </button>
-          )}
-        </nav>
+    <>
+      {/* ================= BANNIÈRE INFO PAIEMENT ================= */}
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          background: "#FEF3C7",
+          color: "#92400E",
+          textAlign: "center",
+          fontSize: 14,
+          fontWeight: 700,
+          padding: "8px 12px",
+          borderBottom: "1px solid rgba(0,0,0,0.08)",
+        }}
+      >
+        <strong>ℹ️ Paiement en cours d’activation</strong> — Les paiements sont temporairement
+        indisponibles. Vous pouvez dès maintenant <strong>publier et gérer vos annonces</strong>.
+        La <strong>réservation et le paiement</strong> seront activés très prochainement.
       </div>
+      {/* ========================================================== */}
 
-      {/* NAVIGATION (mobile dropdown) */}
-      {menuOpen && (
-        <div
-          id="bl-mobile-nav"
-          style={{
-            borderTop: "1px solid rgba(11,18,32,.08)",
-            background: "rgba(255,255,255,.92)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <div style={{ maxWidth: 1040, margin: "0 auto", padding: "10px 16px", display: "grid", gap: 10 }}>
+      <header className="bl-topbar">
+        <div className="bl-topbar-inner">
+          {/* LOGO */}
+          <div className="bl-brand">
+            <Link className="bl-brand-link" href="/" style={{ display: "flex", alignItems: "center" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-booking-light.png" alt="Booking Light" style={{ height: 48 }} />
+            </Link>
+          </div>
+
+          {/* Bouton menu (mobile) */}
+          <div className="bl-topbar-mobile">
+            <button
+              type="button"
+              className="bl-pill"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+              aria-controls="bl-mobile-nav"
+              style={{ border: "1px solid rgba(11,18,32,.10)", background: "white" }}
+            >
+              Menu {menuOpen ? "✕" : "☰"}
+            </button>
+          </div>
+
+          {/* NAVIGATION (desktop) */}
+          <nav className="bl-nav bl-nav-desktop" aria-label="Top navigation">
             <Link className="bl-pill" href="/">
               Accueil
             </Link>
@@ -316,9 +268,30 @@ export default function TopbarClient() {
             </Link>
 
             {uid && (
-              <Link className="bl-pill" href="/messages">
+              <Link className="bl-pill" href="/messages" style={{ position: "relative" }}>
                 Messages
-                {showBadge ? ` (${unreadTotal})` : ""}
+                {showBadge && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 7px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 900,
+                      background: "rgba(17,24,39,1)",
+                      color: "white",
+                      opacity: loadingBadge ? 0.65 : 1,
+                    }}
+                    title="Messages non lus"
+                  >
+                    {unreadTotal}
+                  </span>
+                )}
               </Link>
             )}
 
@@ -330,39 +303,88 @@ export default function TopbarClient() {
               <button
                 className="bl-pill"
                 onClick={logout}
-                style={{ cursor: "pointer", border: "1px solid rgba(11,18,32,.10)", background: "white" }}
+                style={{ cursor: "pointer", border: "none", background: "transparent" }}
                 type="button"
               >
                 Déconnexion
               </button>
             )}
-          </div>
+          </nav>
         </div>
-      )}
 
-      {/* Styles inline simples pour gérer desktop/mobile sans toucher à ton CSS existant */}
-      <style jsx global>{`
-        .bl-topbar-mobile {
-          display: none;
-        }
-        .bl-nav-desktop {
-          display: flex;
-        }
-        @media (max-width: 720px) {
-          .bl-topbar-inner {
-            padding: 12px 16px;
-          }
+        {/* NAVIGATION (mobile dropdown) */}
+        {menuOpen && (
+          <div
+            id="bl-mobile-nav"
+            style={{
+              borderTop: "1px solid rgba(11,18,32,.08)",
+              background: "rgba(255,255,255,.92)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div style={{ maxWidth: 1040, margin: "0 auto", padding: "10px 16px", display: "grid", gap: 10 }}>
+              <Link className="bl-pill" href="/">
+                Accueil
+              </Link>
+              <Link className="bl-pill" href="/publish">
+                Publier
+              </Link>
+              <Link className="bl-pill" href="/my-listings">
+                Mes annonces
+              </Link>
+              <Link className="bl-pill" href="/my-bookings">
+                Mes réservations
+              </Link>
+
+              {uid && (
+                <Link className="bl-pill" href="/messages">
+                  Messages
+                  {showBadge ? ` (${unreadTotal})` : ""}
+                </Link>
+              )}
+
+              {!uid ? (
+                <Link className="bl-pill" href="/auth" aria-current={isAuthPage ? "page" : undefined}>
+                  Connexion
+                </Link>
+              ) : (
+                <button
+                  className="bl-pill"
+                  onClick={logout}
+                  style={{ cursor: "pointer", border: "1px solid rgba(11,18,32,.10)", background: "white" }}
+                  type="button"
+                >
+                  Déconnexion
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Styles inline simples pour gérer desktop/mobile sans toucher à ton CSS existant */}
+        <style jsx global>{`
           .bl-topbar-mobile {
-            display: block;
-          }
-          .bl-nav-desktop {
             display: none;
           }
-          .bl-brand img {
-            height: 40px !important;
+          .bl-nav-desktop {
+            display: flex;
           }
-        }
-      `}</style>
-    </header>
+          @media (max-width: 720px) {
+            .bl-topbar-inner {
+              padding: 12px 16px;
+            }
+            .bl-topbar-mobile {
+              display: block;
+            }
+            .bl-nav-desktop {
+              display: none;
+            }
+            .bl-brand img {
+              height: 40px !important;
+            }
+          }
+        `}</style>
+      </header>
+    </>
   );
 }
