@@ -17,14 +17,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
-    default: "Booking Light",
-    template: "%s · Booking Light",
+    default: "Booking-Light",
+    template: "%s · Booking-Light",
   },
 
   description:
-    "Booking Light — publiez une annonce, gérez vos réservations et échangez via la messagerie interne.",
+    "Booking-Light — publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne.",
 
-  applicationName: "Booking Light",
+  applicationName: "Booking-Light",
 
   icons: {
     icon: [
@@ -41,16 +41,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "/",
-    siteName: "Booking Light",
-    title: "Booking Light",
+    siteName: "Booking-Light",
+    title: "Booking-Light",
     description:
-      "Publiez une annonce, gérez vos réservations et échangez via la messagerie interne.",
+      "Publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne.",
     images: [
       {
         url: "/android-chrome-512x512.png",
         width: 512,
         height: 512,
-        alt: "Booking Light",
+        alt: "Booking-Light",
       },
     ],
     locale: "fr_FR",
@@ -58,9 +58,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Booking Light",
+    title: "Booking-Light",
     description:
-      "Publiez une annonce, gérez vos réservations et échangez via la messagerie interne.",
+      "Publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne.",
     images: ["/android-chrome-512x512.png"],
   },
 };
@@ -93,7 +93,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <footer className="bl-footer">
           <div className="bl-footer-inner">
             <div className="bl-footer-left">
-              <div className="bl-footer-brand">Booking Light</div>
+              <div className="bl-footer-brand">Booking-Light</div>
 
               <div
                 style={{
@@ -120,7 +120,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 Contact
               </Link>
               <Link className="bl-footer-link" href="/terms">
-                Conditions générales
+                CGU
+              </Link>
+              <Link className="bl-footer-link" href="/cgv">
+                CGV
               </Link>
               <Link className="bl-footer-link" href="/privacy">
                 Confidentialité
@@ -130,11 +133,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           <div className="bl-footer-bottom">
             <div className="bl-footer-inner bl-footer-bottom-inner">
-              <div>© {new Date().getFullYear()} Booking Light</div>
+              <div>© {new Date().getFullYear()} Booking-Light</div>
               <div className="bl-footer-muted">
                 Support :{" "}
-                <a className="bl-footer-link" href="mailto:contact@lightbooker.com">
-                  contact@lightbooker.com
+                <a className="bl-footer-link" href="mailto:booking@lightbooker.com">
+                  booking@lightbooker.com
                 </a>
               </div>
             </div>

@@ -1,4 +1,4 @@
-// src/app/contact/page.tsx
+// FILE: src/app/contact/page.tsx
 export default function ContactPage() {
   return (
     <main className="bl-container" style={{ maxWidth: 820 }}>
@@ -7,7 +7,8 @@ export default function ContactPage() {
       </h1>
 
       <p style={{ opacity: 0.8, fontWeight: 700, lineHeight: 1.6, marginTop: 12 }}>
-        Une question, un souci, une suggestion ? Écris-nous et on te répond.
+        Une question, un souci ou besoin d’information concernant le fonctionnement de la plateforme ?
+        L’équipe Booking-Light est là pour t’aider.
       </p>
 
       <section className="bl-panel" style={{ marginTop: 16 }}>
@@ -25,6 +26,11 @@ export default function ContactPage() {
 
         <div style={{ marginTop: 10, opacity: 0.75, fontWeight: 700, lineHeight: 1.6 }}>
           Horaires : 9h–18h (heure locale), du lundi au vendredi.
+        </div>
+
+        <div style={{ marginTop: 10, opacity: 0.75, fontWeight: 700, lineHeight: 1.6 }}>
+          Booking-Light peut répondre aux questions liées à l’utilisation du service et faciliter la communication,
+          sans se substituer aux utilisateurs dans leurs engagements contractuels.
         </div>
       </section>
     </main>

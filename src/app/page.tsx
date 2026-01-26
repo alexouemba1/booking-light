@@ -1,3 +1,4 @@
+// FILE: src/app/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -81,12 +82,7 @@ export default function HomePage() {
 
   const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
 
-  async function search(next?: {
-    city?: string;
-    startDate?: string;
-    endDate?: string;
-    guests?: number;
-  }) {
+  async function search(next?: { city?: string; startDate?: string; endDate?: string; guests?: number }) {
     const c = (next?.city ?? city).trim();
     const s = (next?.startDate ?? startDate).trim();
     const e = (next?.endDate ?? endDate).trim();
@@ -171,15 +167,18 @@ export default function HomePage() {
     <main className="bl-container">
       <div className="bl-hero">
         <div className="bl-hero-title">
-          <h1 className="bl-h1">Booking Light</h1>
+          <h1 className="bl-h1">Booking-Light</h1>
           <div className="bl-hero-meta">
             {items.length} annonce{items.length > 1 ? "s" : ""} · {withPhoto} avec photo
           </div>
         </div>
 
         <div className="bl-hero-card">
-          <div className="bl-hero-card-title">Trouve un endroit où poser tes valises</div>
-          <div className="bl-hero-card-sub">Recherche une ville, consulte la carte, puis réserve.</div>
+          <div className="bl-hero-card-title">Réserve en toute simplicité, publie gratuitement</div>
+          <div className="bl-hero-card-sub">
+            Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est affichée
+            avant validation de la réservation.
+          </div>
 
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
             <div
@@ -231,11 +230,41 @@ export default function HomePage() {
 
             <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Link className="bl-btn bl-btn-primary" href="/publish">
-                + Publier une annonce
+                + Publier une annonce (gratuit)
               </Link>
               <Link className="bl-btn" href="/my-listings">
                 Mes annonces
               </Link>
+            </div>
+
+            {/* Bloc confiance : purement informatif, zéro impact technique */}
+            <div
+              className="bl-alert"
+              style={{
+                marginTop: 12,
+                border: "1px solid rgba(0,0,0,0.08)",
+                background: "rgba(0,0,0,0.03)",
+                fontWeight: 750,
+              }}
+            >
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                <span>✔️ Publication gratuite</span>
+                <span>🔒 Paiement sécurisé (prestataire certifié)</span>
+                <span>💬 Messagerie interne pour échanger</span>
+                <span>🧾 Commission indiquée avant confirmation</span>
+              </div>
+              <div style={{ marginTop: 8, opacity: 0.8, lineHeight: 1.6 }}>
+                Booking-Light est une plateforme de mise en relation : l’hôte et le voyageur restent responsables de leurs
+                engagements. Pour en savoir plus, consulte{" "}
+                <Link href="/terms" className="bl-footer-link" style={{ fontWeight: 900 }}>
+                  les conditions générales
+                </Link>{" "}
+                et{" "}
+                <Link href="/privacy" className="bl-footer-link" style={{ fontWeight: 900 }}>
+                  la confidentialité
+                </Link>
+                .
+              </div>
             </div>
           </form>
 
@@ -260,7 +289,12 @@ export default function HomePage() {
               </div>
             )}
 
-            <iframe title="Carte" src={mapSrc} style={{ width: "100%", height: 260, border: 0, display: "block" }} loading="lazy" />
+            <iframe
+              title="Carte"
+              src={mapSrc}
+              style={{ width: "100%", height: 260, border: 0, display: "block" }}
+              loading="lazy"
+            />
           </div>
         </div>
       </div>
@@ -294,14 +328,7 @@ export default function HomePage() {
                   </div>
 
                   <div className="bl-card-body">
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                      }}
-                    >
+                    <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div className="bl-card-title">{l.title}</div>
 
                       <div

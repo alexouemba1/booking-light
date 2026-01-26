@@ -212,6 +212,11 @@ function safeTime(iso: string | null | undefined) {
   return Number.isFinite(t) ? t : null;
 }
 
+// ✅ helper "clean" pour les boutons filtres
+function filterBtnClass(active: boolean) {
+  return `bl-btn${active ? " bl-btn-primary" : ""}`;
+}
+
 export default function MyBookingsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -510,7 +515,6 @@ export default function MyBookingsClient() {
       return !isCancelled && !isPast;
     });
 
-    // Tri: on met les "pending" (non expirées) tout en haut
     const arr = [...base];
     arr.sort((a, b) => {
       const aStatus = String(a.status || "").toLowerCase();
@@ -525,19 +529,16 @@ export default function MyBookingsClient() {
       const aExpired = aIsPending && typeof aExp === "number" && aExp <= Date.now();
       const bExpired = bIsPending && typeof bExp === "number" && bExp <= Date.now();
 
-      // 1) pending non expirée d'abord
       const aPendingLive = aIsPending && !aExpired;
       const bPendingLive = bIsPending && !bExpired;
       if (aPendingLive && !bPendingLive) return -1;
       if (!aPendingLive && bPendingLive) return 1;
 
-      // 2) puis pending expirées
       const aPendingExpired = aIsPending && aExpired;
       const bPendingExpired = bIsPending && bExpired;
       if (aPendingExpired && !bPendingExpired) return -1;
       if (!aPendingExpired && bPendingExpired) return 1;
 
-      // 3) ensuite par created_at desc (comme avant)
       const at = safeTime(a.created_at) ?? 0;
       const bt = safeTime(b.created_at) ?? 0;
       return bt - at;
@@ -547,6 +548,9 @@ export default function MyBookingsClient() {
   }, [items, filter]);
 
   if (checking) return <main className="bl-container">Chargement…</main>;
+
+  const activeLabel =
+    filter === "all" ? "Tout" : filter === "active" ? "En cours" : filter === "past" ? "Passées" : "Annulées";
 
   return (
     <main className="bl-container">
@@ -558,7 +562,7 @@ export default function MyBookingsClient() {
         </button>
       </div>
 
-      {/* ✅ Filtres A */}
+      {/* ✅ Filtres CLEAN : un seul style "actif" */}
       <div style={{ marginTop: 12 }}>
         <div
           style={{
@@ -567,25 +571,37 @@ export default function MyBookingsClient() {
             gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
           }}
         >
-          <button className="bl-btn" style={{ marginTop: 0, fontWeight: 950, opacity: filter === "all" ? 1 : 0.78 }} onClick={() => setFilter("all")}>
+          <button
+            className={filterBtnClass(filter === "all")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "all"}
+            onClick={() => setFilter("all")}
+          >
             Tout
           </button>
 
           <button
-            className="bl-btn bl-btn-primary"
-            style={{ marginTop: 0, fontWeight: 950, opacity: filter === "active" ? 1 : 0.65 }}
+            className={filterBtnClass(filter === "active")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "active"}
             onClick={() => setFilter("active")}
           >
             En cours
           </button>
 
-          <button className="bl-btn" style={{ marginTop: 0, fontWeight: 950, opacity: filter === "past" ? 1 : 0.78 }} onClick={() => setFilter("past")}>
+          <button
+            className={filterBtnClass(filter === "past")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "past"}
+            onClick={() => setFilter("past")}
+          >
             Passées
           </button>
 
           <button
-            className="bl-btn"
-            style={{ marginTop: 0, fontWeight: 950, opacity: filter === "cancelled" ? 1 : 0.78 }}
+            className={filterBtnClass(filter === "cancelled")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "cancelled"}
             onClick={() => setFilter("cancelled")}
           >
             Annulées
@@ -593,8 +609,7 @@ export default function MyBookingsClient() {
         </div>
 
         <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, opacity: 0.65 }}>
-          Affichage : <span style={{ opacity: 0.9 }}>{filter === "all" ? "Tout" : filter === "active" ? "En cours" : filter === "past" ? "Passées" : "Annulées"}</span>{" "}
-          · {filteredItems.length} réservation(s)
+          Affichage : <span style={{ opacity: 0.9 }}>{activeLabel}</span> · {filteredItems.length} réservation(s)
         </div>
       </div>
 
@@ -785,10 +800,7 @@ export default function MyBookingsClient() {
 
                     {isPending ? (
                       <>
-                        <PrimaryButton
-                          onClick={() => payBooking(b.id)}
-                          disabled={!!payingId || syncing || isPayingThis || isExpired}
-                        >
+                        <PrimaryButton onClick={() => payBooking(b.id)} disabled={!!payingId || syncing || isPayingThis || isExpired}>
                           {isExpired
                             ? "Option expirée"
                             : isPayingThis
@@ -820,7 +832,9 @@ export default function MyBookingsClient() {
                           <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>Contacter l’hôte</SecondaryLinkButton>
 
                           {reviewEligible && (
-                            <SecondaryLinkButton href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(b.id)}#reviews`}>
+                            <SecondaryLinkButton
+                              href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(b.id)}#reviews`}
+                            >
                               {hasReview ? "Modifier mon avis" : "Laisser un avis"}
                             </SecondaryLinkButton>
                           )}
