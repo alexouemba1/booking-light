@@ -1,3 +1,4 @@
+// FILE: src/app/api/search/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -14,17 +15,21 @@ type ListingHome = {
 type BookingRow = {
   listing_id: string;
   status: string;
-  start_date: string; // YYYY-MM-DD
-  end_date: string;   // YYYY-MM-DD (exclu dans ton modèle)
+  start_date: string;
+  end_date: string;
   expires_at: string | null;
 };
 
 function json(data: any, status = 200) {
-  return NextResponse.json(data, { status });
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
+    },
+  });
 }
 
 function isPendingBlocking(expires_at: string | null) {
-  // pending sans expires_at => on bloque (safe)
   if (!expires_at) return true;
   const exp = new Date(expires_at).getTime();
   if (!Number.isFinite(exp)) return true;
@@ -45,17 +50,16 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     const city = String(searchParams.get("city") || "").trim();
-    const startDate = String(searchParams.get("start_date") || "").trim(); // YYYY-MM-DD
-    const endDate = String(searchParams.get("end_date") || "").trim();     // YYYY-MM-DD
+    const startDate = String(searchParams.get("start_date") || "").trim();
+    const endDate = String(searchParams.get("end_date") || "").trim();
 
-    // 1) base listings
+    // ✅ IMPORTANT: on lit la table source (pas listings_home)
     let q = admin
-      .from("listings_home")
+      .from("listings")
       .select("id,title,city,kind,billing_unit,price_cents,cover_image_path")
       .order("created_at", { ascending: false });
 
     if (city) {
-      // simple: filtre sur city (tu peux étendre à title/kind si tu veux)
       q = q.ilike("city", `%${city}%`);
     }
 
@@ -64,12 +68,10 @@ export async function GET(req: Request) {
 
     const base = (listings || []) as ListingHome[];
 
-    // si pas de dates => on renvoie direct
     if (!startDate || !endDate) {
       return json({ ok: true, items: base });
     }
 
-    // 2) récupérer bookings "bloquantes" qui overlap (start < endWanted && end > startWanted)
     const listingIds = base.map((x) => x.id);
     if (listingIds.length === 0) return json({ ok: true, items: [] });
 
@@ -78,8 +80,9 @@ export async function GET(req: Request) {
       .select("listing_id,status,start_date,end_date,expires_at")
       .in("listing_id", listingIds)
       .in("status", ["pending", "confirmed", "paid"])
-      .lt("start_date", endDate)   // start < endWanted
-      .gt("end_date", startDate);  // end > startWanted
+      .lt("start_date", endDate)
+      .gt("end_date", startDate);
+
     if (bErr) return json({ error: bErr.message }, 400);
 
     const rows = (bks || []) as BookingRow[];
