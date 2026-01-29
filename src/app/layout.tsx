@@ -5,7 +5,7 @@ import "./styles/zoom.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import Script from "next/script"; // ✅ Google Analytics
+import Script from "next/script";
 import TopbarClient from "@/components/TopbarClient";
 
 const SITE_URL =
@@ -15,17 +15,13 @@ const SITE_URL =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-
   title: {
     default: "Booking-Light",
     template: "%s · Booking-Light",
   },
-
   description:
     "Booking-Light — publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne.",
-
   applicationName: "Booking-Light",
-
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
@@ -35,9 +31,7 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: "/favicon.ico",
   },
-
   manifest: "/site.webmanifest",
-
   openGraph: {
     type: "website",
     url: "/",
@@ -55,7 +49,6 @@ export const metadata: Metadata = {
     ],
     locale: "fr_FR",
   },
-
   twitter: {
     card: "summary_large_image",
     title: "Booking-Light",
@@ -69,9 +62,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
       <head>
-        {/* ================= Google Analytics ================= */}
+        {/* Google Analytics */}
         <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M`}
+          src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M"
           strategy="afterInteractive"
         />
         <Script id="ga4" strategy="afterInteractive">
@@ -82,7 +75,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             gtag('config', 'G-9TRP7B6V1M');
           `}
         </Script>
-        {/* =================================================== */}
       </head>
 
       <body className="bl-body">
@@ -101,9 +93,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   display: "flex",
                   gap: 10,
                   flexWrap: "wrap",
+                  alignItems: "center",
                   fontSize: 12,
                   fontWeight: 800,
                   color: "rgba(0,0,0,0.65)",
+                  lineHeight: 1.4,
                 }}
               >
                 <span>🔒 Paiement sécurisé</span>
@@ -115,6 +109,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <nav className="bl-footer-nav" aria-label="Footer">
               <Link className="bl-footer-link" href="/about">
                 À propos
+              </Link>
+              <Link className="bl-footer-link" href="/about">
+                Comment ça marche ?
               </Link>
               <Link className="bl-footer-link" href="/contact">
                 Contact
@@ -131,14 +128,38 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
 
+          {/* 🔽 Footer bottom avec WhatsApp */}
           <div className="bl-footer-bottom">
             <div className="bl-footer-inner bl-footer-bottom-inner">
               <div>© {new Date().getFullYear()} Booking-Light</div>
-              <div className="bl-footer-muted">
-                Support :{" "}
-                <a className="bl-footer-link" href="mailto:booking@lightbooker.com">
-                  booking@lightbooker.com
-                </a>
+
+              <div
+                className="bl-footer-muted"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 16,
+                  alignItems: "center",
+                  lineHeight: 1.4,
+                }}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  Support :
+                  <a className="bl-footer-link" href="mailto:booking@lightbooker.com">
+                    booking@lightbooker.com
+                  </a>
+                </span>
+
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <a
+                    className="bl-footer-link"
+                    href="https://wa.me/33777399242"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    💬 WhatsApp : +33 7 77 39 92 42
+                  </a>
+                </span>
               </div>
             </div>
           </div>

@@ -78,7 +78,10 @@ export default function HomePage() {
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number }>({ lat: 48.8566, lon: 2.3522 });
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number }>({
+    lat: 48.8566,
+    lon: 2.3522,
+  });
 
   const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
 
@@ -176,8 +179,8 @@ export default function HomePage() {
         <div className="bl-hero-card">
           <div className="bl-hero-card-title">Réserve en toute simplicité, publie gratuitement</div>
           <div className="bl-hero-card-sub">
-            Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est affichée
-            avant validation de la réservation.
+            Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est
+            affichée avant validation de la réservation.
           </div>
 
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
@@ -190,12 +193,7 @@ export default function HomePage() {
             >
               <div>
                 <label className="bl-label">Ville</label>
-                <input
-                  className="bl-input"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Ex : Paris"
-                />
+                <input className="bl-input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex : Paris" />
               </div>
 
               <div>
@@ -237,35 +235,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Bloc confiance : purement informatif, zéro impact technique */}
-            <div
-              className="bl-alert"
-              style={{
-                marginTop: 12,
-                border: "1px solid rgba(0,0,0,0.08)",
-                background: "rgba(0,0,0,0.03)",
-                fontWeight: 750,
-              }}
-            >
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                <span>✔️ Publication gratuite</span>
-                <span>🔒 Paiement sécurisé (prestataire certifié)</span>
-                <span>💬 Messagerie interne pour échanger</span>
-                <span>🧾 Commission indiquée avant confirmation</span>
-              </div>
-              <div style={{ marginTop: 8, opacity: 0.8, lineHeight: 1.6 }}>
-                Booking-Light est une plateforme de mise en relation : l’hôte et le voyageur restent responsables de leurs
-                engagements. Pour en savoir plus, consulte{" "}
-                <Link href="/terms" className="bl-footer-link" style={{ fontWeight: 900 }}>
-                  les conditions générales
-                </Link>{" "}
-                et{" "}
-                <Link href="/privacy" className="bl-footer-link" style={{ fontWeight: 900 }}>
-                  la confidentialité
-                </Link>
-                .
-              </div>
-            </div>
+            
           </form>
 
           <div
@@ -289,15 +259,12 @@ export default function HomePage() {
               </div>
             )}
 
-            <iframe
-              title="Carte"
-              src={mapSrc}
-              style={{ width: "100%", height: 260, border: 0, display: "block" }}
-              loading="lazy"
-            />
+            <iframe title="Carte" src={mapSrc} style={{ width: "100%", height: 260, border: 0, display: "block" }} loading="lazy" />
           </div>
         </div>
       </div>
+
+      
 
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
