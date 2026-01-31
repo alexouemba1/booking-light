@@ -127,7 +127,15 @@ function PillBadge({
         maxWidth: "100%",
       }}
     >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{children}</span>
+      <span
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {children}
+      </span>
     </span>
   );
 }
@@ -323,7 +331,10 @@ export default function MyBookingsClient() {
       return;
     }
 
-    const { data: listings, error: lErr } = await supabase.from("listings").select("id,title,cover_image_path").in("id", ids);
+    const { data: listings, error: lErr } = await supabase
+      .from("listings")
+      .select("id,title,cover_image_path")
+      .in("id", ids);
 
     if (!lErr) {
       const map: Record<string, ListingLite> = {};
@@ -343,7 +354,10 @@ export default function MyBookingsClient() {
       return;
     }
 
-    const { data: revs, error: rErr } = await supabase.from("reviews").select("id, booking_id").in("booking_id", bookingIds);
+    const { data: revs, error: rErr } = await supabase
+      .from("reviews")
+      .select("id, booking_id")
+      .in("booking_id", bookingIds);
 
     if (rErr) {
       setReviewIdByBookingId({});
@@ -359,7 +373,11 @@ export default function MyBookingsClient() {
   }
 
   async function fetchBookingState(bookingId: string) {
-    const { data, error } = await supabase.from("bookings").select("id,status,payment_status,expires_at").eq("id", bookingId).single();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("id,status,payment_status,expires_at")
+      .eq("id", bookingId)
+      .single();
     if (error || !data) return null;
 
     const row = data as BookingStateRow;
@@ -376,9 +394,13 @@ export default function MyBookingsClient() {
 
     const channel = supabase
       .channel(`bookings-renter-${sessionUid}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `renter_id=eq.${sessionUid}` }, () => {
-        loadData();
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `renter_id=eq.${sessionUid}` },
+        () => {
+          loadData();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -453,7 +475,12 @@ export default function MyBookingsClient() {
           for (let i = 0; i < maxTries && alive; i++) {
             const st = await fetchBookingState(bookingIdFromUrl);
 
-            const synced = !!st && (st.pay === "paid" || st.pay === "succeeded" || st.status === "confirmed" || st.status === "paid");
+            const synced =
+              !!st &&
+              (st.pay === "paid" ||
+                st.pay === "succeeded" ||
+                st.status === "confirmed" ||
+                st.status === "paid");
 
             if (synced) {
               await loadData();
@@ -533,7 +560,10 @@ export default function MyBookingsClient() {
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ bookingId }),
       });
 
@@ -547,11 +577,16 @@ export default function MyBookingsClient() {
 
       if (!res.ok) {
         const msg =
-          typeof json === "object" && json && "error" in json ? String((json as { error?: unknown }).error) : null;
+          typeof json === "object" && json && "error" in json
+            ? String((json as { error?: unknown }).error)
+            : null;
         throw new Error(msg ?? "Erreur paiement");
       }
 
-      const url = typeof json === "object" && json && "url" in json ? String((json as { url?: unknown }).url || "") : "";
+      const url =
+        typeof json === "object" && json && "url" in json
+          ? String((json as { url?: unknown }).url || "")
+          : "";
       if (!url) throw new Error("URL de paiement manquante.");
 
       window.location.href = url;
@@ -613,36 +648,83 @@ export default function MyBookingsClient() {
 
   if (checking) return <main className="bl-container">Chargement…</main>;
 
-  const activeLabel = filter === "all" ? "Tout" : filter === "active" ? "En cours" : filter === "past" ? "Passées" : "Annulées";
+  const activeLabel =
+    filter === "all"
+      ? "Tout"
+      : filter === "active"
+      ? "En cours"
+      : filter === "past"
+      ? "Passées"
+      : "Annulées";
 
   return (
     <main className="bl-container">
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <h1 style={{ margin: 0 }}>Mes réservations</h1>
 
-        <button className="bl-btn" style={{ marginTop: 0, height: 40, fontWeight: 900 }} onClick={loadData} disabled={syncing}>
+        <button
+          className="bl-btn"
+          style={{ marginTop: 0, height: 40, fontWeight: 900 }}
+          onClick={loadData}
+          disabled={syncing}
+        >
           {syncing ? "Sync…" : "Rafraîchir"}
         </button>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
-          <button className={filterBtnClass(filter === "all")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          }}
+        >
+          <button
+            className={filterBtnClass(filter === "all")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "all"}
+            onClick={() => setFilter("all")}
+          >
             Tout
           </button>
-          <button className={filterBtnClass(filter === "active")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "active"} onClick={() => setFilter("active")}>
+          <button
+            className={filterBtnClass(filter === "active")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "active"}
+            onClick={() => setFilter("active")}
+          >
             En cours
           </button>
-          <button className={filterBtnClass(filter === "past")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "past"} onClick={() => setFilter("past")}>
+          <button
+            className={filterBtnClass(filter === "past")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "past"}
+            onClick={() => setFilter("past")}
+          >
             Passées
           </button>
-          <button className={filterBtnClass(filter === "cancelled")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "cancelled"} onClick={() => setFilter("cancelled")}>
+          <button
+            className={filterBtnClass(filter === "cancelled")}
+            style={{ marginTop: 0, fontWeight: 950 }}
+            aria-pressed={filter === "cancelled"}
+            onClick={() => setFilter("cancelled")}
+          >
             Annulées
           </button>
         </div>
 
         <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, opacity: 0.65 }}>
-          Affichage : <span style={{ opacity: 0.9 }}>{activeLabel}</span> · {filteredItems.length} réservation(s)
+          Affichage : <span style={{ opacity: 0.9 }}>{activeLabel}</span> ·{" "}
+          {filteredItems.length} réservation(s)
         </div>
       </div>
 
@@ -662,10 +744,18 @@ export default function MyBookingsClient() {
           }}
         >
           <div>
-            <strong>Paiement validé.</strong> {syncing ? <>Synchronisation en cours…</> : <>Réservation confirmée. Merci.</>}
+            <strong>Paiement validé.</strong>{" "}
+            {syncing ? <>Synchronisation en cours…</> : <>Réservation confirmée. Merci.</>}
           </div>
 
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", width: "100%" }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 10,
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              width: "100%",
+            }}
+          >
             {bookingIdFromUrl && (
               <Link
                 href={`/messages/${bookingIdFromUrl}?autostart=1`}
@@ -712,7 +802,15 @@ export default function MyBookingsClient() {
       )}
 
       {showCanceledBanner && (
-        <div className="bl-alert" style={{ border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.10)", marginBottom: 14, marginTop: 12 }}>
+        <div
+          className="bl-alert"
+          style={{
+            border: "1px solid rgba(245,158,11,0.35)",
+            background: "rgba(245,158,11,0.10)",
+            marginBottom: 14,
+            marginTop: 12,
+          }}
+        >
           <strong>Paiement annulé.</strong> Aucun débit n’a été effectué.
         </div>
       )}
@@ -727,13 +825,17 @@ export default function MyBookingsClient() {
         <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
           {filteredItems.map((b) => {
             const listing = listingById[b.listing_id];
-            const cover = listing?.cover_image_path ? publicListingImageUrl(listing.cover_image_path) : null;
+            const cover = listing?.cover_image_path
+              ? publicListingImageUrl(listing.cover_image_path)
+              : null;
 
             const statusKey = String(b.status || "").toLowerCase();
             const payKey = String(b.payment_status || "").toLowerCase();
 
             // ✅ Optimiste robuste: compare ids normalisés
-            const optimisticPaid = !!optimisticPaidBookingId && normalizeId(optimisticPaidBookingId) === normalizeId(b.id);
+            const optimisticPaid =
+              !!optimisticPaidBookingId &&
+              normalizeId(optimisticPaidBookingId) === normalizeId(b.id);
 
             const isCancelled = statusKey === "cancelled" || statusKey === "canceled";
             const isConfirmed = optimisticPaid || isConfirmedLike(statusKey, payKey);
@@ -751,15 +853,20 @@ export default function MyBookingsClient() {
             const msLeft = expiresAt ? expiresAt - nowTick : null;
 
             const isExpired = isPending && typeof msLeft === "number" && msLeft <= 0;
-            const reviewEligible = !isPending && !isCancelled && isConfirmed && isStayFinished(b.end_date);
+            const reviewEligible =
+              !isPending && !isCancelled && isConfirmed && isStayFinished(b.end_date);
             const hasReview = !!reviewIdByBookingId[b.id];
 
-            let badge: React.ReactNode = <PillBadge tone="neutral">{formatStatusFR(b.status)}</PillBadge>;
+            let badge: React.ReactNode = (
+              <PillBadge tone="neutral">{formatStatusFR(b.status)}</PillBadge>
+            );
             if (isPaid) badge = <PillBadge tone="success">Payée</PillBadge>;
             else if (isConfirmed) badge = <PillBadge tone="neutral">confirmée</PillBadge>;
             else if (isPending)
               badge = (
-                <PillBadge tone={isExpired ? "danger" : "warning"}>{isExpired ? "Option expirée" : "Option (en attente)"}</PillBadge>
+                <PillBadge tone={isExpired ? "danger" : "warning"}>
+                  {isExpired ? "Option expirée" : "Option (en attente)"}
+                </PillBadge>
               );
             else if (isCancelled) badge = <PillBadge tone="danger">Annulée</PillBadge>;
 
@@ -775,26 +882,55 @@ export default function MyBookingsClient() {
                 style={{
                   padding: 14,
                   borderRadius: 16,
-                  border: isFocused ? "2px solid rgba(17, 24, 39, 0.9)" : "1px solid rgba(0,0,0,0.08)",
+                  border: isFocused
+                    ? "2px solid rgba(17, 24, 39, 0.9)"
+                    : "1px solid rgba(0,0,0,0.08)",
                   background: isFocused ? "rgba(17, 24, 39, 0.02)" : "white",
-                  boxShadow: isHighlighted ? "0 0 0 6px rgba(17, 24, 39, 0.10)" : isFocused ? "0 10px 24px rgba(0,0,0,0.10)" : undefined,
+                  boxShadow: isHighlighted
+                    ? "0 0 0 6px rgba(17, 24, 39, 0.10)"
+                    : isFocused
+                    ? "0 10px 24px rgba(0,0,0,0.10)"
+                    : undefined,
                   transition: "box-shadow 220ms ease, border-color 220ms ease",
                   opacity: isExpired ? 0.88 : 1,
                 }}
               >
                 <div className="bl-booking-row">
-                  <Link href={`/listing/${b.listing_id}`} className="bl-booking-media" style={{ textDecoration: "none" }}>
+                  <Link
+                    href={`/listing/${b.listing_id}`}
+                    className="bl-booking-media"
+                    style={{ textDecoration: "none" }}
+                  >
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cover} alt={listing?.title ?? "Annonce"} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12, display: "block" }} />
+                      <img
+                        src={cover}
+                        alt={listing?.title ?? "Annonce"}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: 12,
+                          display: "block",
+                        }}
+                      />
                     ) : (
-                      <div style={{ width: "100%", height: "100%", background: "rgba(0,0,0,0.05)", borderRadius: 12 }} />
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          background: "rgba(0,0,0,0.05)",
+                          borderRadius: 12,
+                        }}
+                      />
                     )}
                   </Link>
 
                   <div className="bl-booking-body">
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <strong style={{ fontSize: 16, lineHeight: 1.2 }}>{listing?.title ?? "Annonce"}</strong>
+                      <strong style={{ fontSize: 16, lineHeight: 1.2 }}>
+                        {listing?.title ?? "Annonce"}
+                      </strong>
                       {badge}
                       {showUrgent && <PillBadge tone="warning">Urgent</PillBadge>}
                       {isFocused && <PillBadge tone="neutral">Sélectionnée</PillBadge>}
@@ -804,7 +940,9 @@ export default function MyBookingsClient() {
                       {formatDateFR(b.start_date)} → {formatDateFR(b.end_date)}
                     </div>
 
-                    <div style={{ marginTop: 6, fontWeight: 950, fontSize: 16 }}>{euros(b.total_cents)}</div>
+                    <div style={{ marginTop: 6, fontWeight: 950, fontSize: 16 }}>
+                      {euros(b.total_cents)}
+                    </div>
 
                     {isPending && expiresAt && (
                       <div style={{ marginTop: 8, fontSize: 13, fontWeight: 850, opacity: 0.85 }}>
@@ -814,27 +952,54 @@ export default function MyBookingsClient() {
 
                     {isPending ? (
                       <>
-                        <PrimaryButton onClick={() => payBooking(b.id)} disabled={!!payingId || syncing || isPayingThis || isExpired}>
-                          {isExpired ? "Option expirée" : isPayingThis ? "Redirection…" : syncing ? "Synchronisation…" : "Payer maintenant"}
+                        <PrimaryButton
+                          onClick={() => payBooking(b.id)}
+                          disabled={!!payingId || syncing || isPayingThis || isExpired}
+                        >
+                          {isExpired
+                            ? "Option expirée"
+                            : isPayingThis
+                            ? "Redirection…"
+                            : syncing
+                            ? "Synchronisation…"
+                            : "Payer maintenant"}
                         </PrimaryButton>
 
                         <div className="bl-actions-grid">
-                          <SecondaryLinkButton href={`/listing/${b.listing_id}`}>Retour à l’annonce</SecondaryLinkButton>
-                          <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>Contacter l’hôte</SecondaryLinkButton>
+                          <SecondaryLinkButton href={`/listing/${b.listing_id}`}>
+                            Retour à l’annonce
+                          </SecondaryLinkButton>
+                          <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>
+                            Contacter l’hôte
+                          </SecondaryLinkButton>
                         </div>
                       </>
                     ) : (
                       <>
                         <div style={{ marginTop: 10, opacity: 0.75, fontSize: 13, fontWeight: 850 }}>
-                          {isConfirmed ? "Réservation confirmée. Paiement reçu." : isPaid ? "Paiement reçu." : isCancelled ? "Option expirée / réservation annulée." : "Statut mis à jour."}
+                          {isConfirmed
+                            ? "Réservation confirmée. Paiement reçu."
+                            : isPaid
+                            ? "Paiement reçu."
+                            : isCancelled
+                            ? "Option expirée / réservation annulée."
+                            : "Statut mis à jour."}
                         </div>
 
                         <div className="bl-actions-grid" style={{ marginTop: 10 }}>
-                          <SecondaryLinkButton href={`/listing/${b.listing_id}`}>Retour à l’annonce</SecondaryLinkButton>
-                          <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>Contacter l’hôte</SecondaryLinkButton>
+                          <SecondaryLinkButton href={`/listing/${b.listing_id}`}>
+                            Retour à l’annonce
+                          </SecondaryLinkButton>
+                          <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>
+                            Contacter l’hôte
+                          </SecondaryLinkButton>
 
                           {reviewEligible && (
-                            <SecondaryLinkButton href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(b.id)}#reviews`}>
+                            <SecondaryLinkButton
+                              href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(
+                                b.id
+                              )}#reviews`}
+                            >
                               {hasReview ? "Modifier mon avis" : "Laisser un avis"}
                             </SecondaryLinkButton>
                           )}
