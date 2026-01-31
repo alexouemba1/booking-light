@@ -30,6 +30,20 @@ function formatPrice(price_cents: number, billing_unit: string) {
 
 type SortKey = "recent" | "price_asc" | "price_desc" | "title_asc";
 
+type ConnectStatus =
+  | {
+      hasAccount: false;
+      active: false;
+      message?: string;
+    }
+  | {
+      hasAccount: true;
+      stripeAccountId: string;
+      chargesEnabled: boolean;
+      payoutsEnabled: boolean;
+      active: boolean;
+    };
+
 export default function MyListingsPage() {
   const router = useRouter();
 
@@ -49,6 +63,100 @@ export default function MyListingsPage() {
 
   // ✅ UX: feedback copie lien
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // ✅ Stripe Connect status
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
+  const [checkingConnect, setCheckingConnect] = useState(false);
+
+  // ✅ Onboarding Stripe (loueur)
+  const [connectingStripe, setConnectingStripe] = useState(false);
+
+  const isConnectActive = useMemo(() => {
+    return !!connectStatus && connectStatus.hasAccount && connectStatus.active;
+  }, [connectStatus]);
+
+  async function fetchConnectStatus() {
+    setErrorMsg(null);
+    setCheckingConnect(true);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        setCheckingConnect(false);
+        return;
+      }
+
+      const res = await fetch("/api/stripe/connect/status", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const raw = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error("Réponse invalide du serveur (pas du JSON).");
+      }
+
+      if (!res.ok) throw new Error(json?.error ?? "Erreur statut Stripe");
+
+      setConnectStatus(json as ConnectStatus);
+    } catch (e: any) {
+      // On n’empêche pas l’utilisateur de gérer ses annonces si Stripe a un souci
+      console.warn("[my-listings] connect status error:", e?.message);
+      setConnectStatus(null);
+    } finally {
+      setCheckingConnect(false);
+    }
+  }
+
+  async function startStripeOnboarding() {
+    try {
+      if (connectingStripe) return;
+
+      setErrorMsg(null);
+      setNotice(null);
+      setConnectingStripe(true);
+
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        setErrorMsg("Tu dois être connecté.");
+        router.replace("/auth");
+        return;
+      }
+
+      const res = await fetch("/api/stripe/connect/onboard", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const raw = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error("Réponse invalide du serveur (pas du JSON). Regarde les logs Vercel.");
+      }
+
+      if (!res.ok) throw new Error(json?.error ?? "Erreur Stripe Connect.");
+
+      const url = String(json?.url || "");
+      if (!url) throw new Error("URL Stripe manquante.");
+
+      window.location.href = url;
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur Stripe Connect.");
+    } finally {
+      setConnectingStripe(false);
+    }
+  }
 
   async function load(uid: string) {
     setLoading(true);
@@ -89,6 +197,9 @@ export default function MyListingsPage() {
       setUserId(uid);
       setChecking(false);
       await load(uid);
+
+      // ✅ charge aussi le statut Stripe Connect (sans bloquer)
+      fetchConnectStatus();
     }
 
     init();
@@ -141,6 +252,7 @@ export default function MyListingsPage() {
     if (!userId) return;
     setNotice(null);
     await load(userId);
+    await fetchConnectStatus();
     setNotice("Liste mise à jour.");
     setTimeout(() => setNotice(null), 1800);
   }
@@ -254,12 +366,27 @@ export default function MyListingsPage() {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    textDecoration: "none",
+    color: "inherit",
+  };
+
+  const btnPrimary: React.CSSProperties = {
+    ...btn,
+    borderColor: "rgba(47,107,255,.28)",
+    background: "rgba(47,107,255,.10)",
   };
 
   const btnDisabled: React.CSSProperties = {
     ...btn,
     cursor: "not-allowed",
     opacity: 0.55,
+  };
+
+  const badgeOk: React.CSSProperties = {
+    ...btn,
+    cursor: "default",
+    borderColor: "rgba(16,185,129,0.35)",
+    background: "rgba(16,185,129,0.10)",
   };
 
   const input: React.CSSProperties = {
@@ -301,6 +428,29 @@ export default function MyListingsPage() {
           <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.2 }}>Mes annonces</h1>
           <p style={{ marginTop: 6, opacity: 0.75 }}>Tu gères tes annonces ici. Design plus clean, stress en moins.</p>
 
+          {/* ✅ Stripe Connect (côté loueur) */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+            {!isConnectActive ? (
+              <button
+                onClick={startStripeOnboarding}
+                style={connectingStripe ? btnDisabled : btnPrimary}
+                disabled={connectingStripe}
+              >
+                {connectingStripe ? "Redirection Stripe…" : "Activer les paiements (Stripe)"}
+              </button>
+            ) : (
+              <span style={badgeOk}>✅ Paiements activés</span>
+            )}
+
+            <button onClick={fetchConnectStatus} style={checkingConnect ? btnDisabled : btn} disabled={checkingConnect}>
+              {checkingConnect ? "Vérification…" : "Vérifier"}
+            </button>
+
+            <Link href="/dashboard/payments" style={btn} title="Voir la page paiements">
+              Page paiements →
+            </Link>
+          </div>
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
             <input
               value={query}
@@ -316,6 +466,17 @@ export default function MyListingsPage() {
               <option value="title_asc">Tri : titre A → Z</option>
             </select>
           </div>
+
+          {/* Petit texte d’aide (super simple) */}
+          <div style={{ marginTop: 10, opacity: 0.7, fontWeight: 800, fontSize: 13, lineHeight: 1.5 }}>
+            {connectStatus?.hasAccount && !connectStatus.active
+              ? "⏳ Stripe vérifie vos infos. Pendant ce temps, vous pouvez publier, mais les paiements peuvent rester en attente."
+              : !connectStatus
+              ? "ℹ️ Statut Stripe : non vérifié pour le moment."
+              : isConnectActive
+              ? "✅ Vous êtes prêt à recevoir des paiements."
+              : "ℹ️ Activez Stripe pour recevoir des paiements."}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -326,8 +487,6 @@ export default function MyListingsPage() {
           <button onClick={refresh} style={loading ? btnDisabled : btn} disabled={loading}>
             {loading ? "Rafraîchissement…" : "Rafraîchir"}
           </button>
-
-          {/* ✅ Plus de mini-navbar ici : on s’appuie sur le header global (layout.tsx) */}
         </div>
       </div>
 
@@ -435,14 +594,14 @@ export default function MyListingsPage() {
                   </Link>
 
                   <div style={{ padding: "0 12px 12px 12px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <Link href={`/listing/${it.id}`} style={{ ...btn, textDecoration: "none" }}>
+                    <Link href={`/listing/${it.id}`} style={btn}>
                       Ouvrir
                     </Link>
 
-                    {/* ✅ NOUVEAU: lien vers réservations côté hôte pour CETTE annonce */}
                     <Link
-                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`}
-                      style={{ ...btn, textDecoration: "none" }}
+                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`
+                      }
+                      style={btn}
                       title="Voir les réservations reçues sur cette annonce"
                     >
                       Voir réservations

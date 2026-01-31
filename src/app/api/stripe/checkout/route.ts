@@ -16,12 +16,8 @@ let stripeSingleton: Stripe | null = null;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    throw new Error("Config manquante: STRIPE_SECRET_KEY");
-  }
-  if (!stripeSingleton) {
-    stripeSingleton = new Stripe(key);
-  }
+  if (!key) throw new Error("Config manquante: STRIPE_SECRET_KEY");
+  if (!stripeSingleton) stripeSingleton = new Stripe(key);
   return stripeSingleton;
 }
 
@@ -38,6 +34,18 @@ function asInt(n: any) {
 
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
+}
+
+function normalizeBaseUrl(url: string) {
+  // retire trailing slash
+  return url.replace(/\/+$/, "");
+}
+
+function buildReturnUrl(base: string, path: string, params: Record<string, string>) {
+  const baseClean = normalizeBaseUrl(base);
+  const u = new URL(`${baseClean}${path.startsWith("/") ? "" : "/"}${path}`);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  return u.toString();
 }
 
 export async function POST(req: Request) {
@@ -90,7 +98,7 @@ export async function POST(req: Request) {
     const statusKey = String(booking.status || "").toLowerCase();
     const payKey = String(booking.payment_status || "unpaid").toLowerCase();
 
-    // ✅ Anti double paiement (tu demandais exactement ça)
+    // ✅ Anti double paiement
     if (payKey === "paid" || statusKey === "paid" || statusKey === "confirmed") {
       return j({ error: "Cette réservation est déjà payée." }, 400);
     }
@@ -99,8 +107,7 @@ export async function POST(req: Request) {
       return j({ error: "Cette réservation est annulée (option expirée)." }, 400);
     }
 
-    // ✅ Optionnel (mais recommandé) : on ne paie que si la réservation est bien en "pending"
-    // (si tu as un autre flux, dis-moi et on adapte)
+    // ✅ Recommandé : on ne paie que si la réservation est en "pending"
     if (statusKey !== "pending") {
       return j({ error: "Cette réservation n’est pas en attente de paiement." }, 400);
     }
@@ -164,9 +171,18 @@ export async function POST(req: Request) {
       .update({ platform_fee_cents: platformFee, subtotal_cents: subtotal })
       .eq("id", bookingId);
 
-    // 6) URLs retour
-    const successUrl = `${APP_URL}/my-bookings?paid=1&bookingId=${encodeURIComponent(bookingId)}`;
-    const cancelUrl = `${APP_URL}/my-bookings?canceled=1&bookingId=${encodeURIComponent(bookingId)}`;
+    // 6) URLs retour (✅ + focus pour surligner la card au retour Stripe)
+    const successUrl = buildReturnUrl(APP_URL, "/my-bookings", {
+      paid: "1",
+      bookingId: String(bookingId),
+      focus: String(bookingId),
+    });
+
+    const cancelUrl = buildReturnUrl(APP_URL, "/my-bookings", {
+      canceled: "1",
+      bookingId: String(bookingId),
+      focus: String(bookingId),
+    });
 
     // ✅ Instancier Stripe ici (lazy)
     const stripe = getStripe();
@@ -190,7 +206,7 @@ export async function POST(req: Request) {
             },
           },
         ],
-        metadata: { bookingId },
+        metadata: { bookingId: String(bookingId) },
         payment_intent_data: {
           application_fee_amount: platformFee,
           transfer_data: { destination: destinationAccount },

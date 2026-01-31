@@ -1,4 +1,3 @@
-// FILE: src/app/my-bookings/MyBookingsClient.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +44,11 @@ type BookingStateRow = {
   expires_at: string | null;
 };
 
+function normalizeId(x: unknown) {
+  // ✅ évite les mismatch " 123 " vs 123 vs "123"
+  return String(x ?? "").trim();
+}
+
 function euros(cents: number) {
   return (cents / 100).toFixed(2).replace(".", ",") + " €";
 }
@@ -63,6 +67,20 @@ function formatStatusFR(s: string) {
   if (key === "paid") return "payée";
   if (key === "cancelled" || key === "canceled") return "annulée";
   return s;
+}
+
+function isPaidLike(statusKey: string, payKey: string) {
+  // ✅ robuste live/test : parfois "succeeded" peut apparaître selon implémentations
+  if (payKey === "paid" || payKey === "succeeded") return true;
+  if (statusKey === "paid") return true;
+  return false;
+}
+
+function isConfirmedLike(statusKey: string, payKey: string) {
+  // confirmed inclut paid-like
+  if (statusKey === "confirmed") return true;
+  if (isPaidLike(statusKey, payKey)) return true;
+  return false;
 }
 
 function PillBadge({
@@ -212,7 +230,6 @@ function safeTime(iso: string | null | undefined) {
   return Number.isFinite(t) ? t : null;
 }
 
-// ✅ helper "clean" pour les boutons filtres
 function filterBtnClass(active: boolean) {
   return `bl-btn${active ? " bl-btn-primary" : ""}`;
 }
@@ -223,8 +240,10 @@ export default function MyBookingsClient() {
 
   const paid = searchParams.get("paid");
   const canceled = searchParams.get("canceled");
-  const bookingIdFromUrl = searchParams.get("bookingId");
-  const focusId = searchParams.get("focus");
+
+  // ✅ normalisation (évite mismatch id)
+  const bookingIdFromUrl = normalizeId(searchParams.get("bookingId"));
+  const focusId = normalizeId(searchParams.get("focus"));
 
   const [checking, setChecking] = useState(true);
   const [items, setItems] = useState<Booking[]>([]);
@@ -241,16 +260,19 @@ export default function MyBookingsClient() {
   const [keepSuccessBanner, setKeepSuccessBanner] = useState(false);
 
   const [reviewIdByBookingId, setReviewIdByBookingId] = useState<Record<string, string>>({});
-
-  // ✅ Filtre UI
   const [filter, setFilter] = useState<"all" | "active" | "past" | "cancelled">("active");
+
+  const [sessionUid, setSessionUid] = useState<string | null>(null);
+
+  // ✅ Mode “optimiste”: on masque le bouton payer pour CETTE booking après retour Stripe
+  const [optimisticPaidBookingId, setOptimisticPaidBookingId] = useState<string | null>(null);
 
   const showPaidBanner = useMemo(() => paid === "1" || keepSuccessBanner, [paid, keepSuccessBanner]);
   const showCanceledBanner = useMemo(() => canceled === "1", [canceled]);
 
   const bannerBooking = useMemo(() => {
     if (!bookingIdFromUrl) return null;
-    return items.find((x) => x.id === bookingIdFromUrl) ?? null;
+    return items.find((x) => normalizeId(x.id) === bookingIdFromUrl) ?? null;
   }, [bookingIdFromUrl, items]);
 
   const bannerListingId = bannerBooking?.listing_id ?? null;
@@ -260,6 +282,8 @@ export default function MyBookingsClient() {
 
     const { data: session } = await supabase.auth.getSession();
     const uid = session.session?.user?.id ?? null;
+
+    setSessionUid(uid);
 
     if (!uid) {
       router.replace("/auth");
@@ -279,6 +303,18 @@ export default function MyBookingsClient() {
 
     const safe = (bookings || []) as Booking[];
     setItems(safe);
+
+    // ✅ si la booking optimiste est désormais payée/confirmée, on coupe le mode optimiste
+    if (optimisticPaidBookingId) {
+      const b = safe.find((x) => normalizeId(x.id) === normalizeId(optimisticPaidBookingId)) || null;
+      if (b) {
+        const statusKey = String(b.status || "").toLowerCase();
+        const payKey = String(b.payment_status || "").toLowerCase();
+        if (isPaidLike(statusKey, payKey) || isConfirmedLike(statusKey, payKey)) {
+          setOptimisticPaidBookingId(null);
+        }
+      }
+    }
 
     const ids = [...new Set(safe.map((b) => b.listing_id))];
     if (ids.length === 0) {
@@ -324,7 +360,6 @@ export default function MyBookingsClient() {
 
   async function fetchBookingState(bookingId: string) {
     const { data, error } = await supabase.from("bookings").select("id,status,payment_status,expires_at").eq("id", bookingId).single();
-
     if (error || !data) return null;
 
     const row = data as BookingStateRow;
@@ -335,8 +370,32 @@ export default function MyBookingsClient() {
     return { status, pay, expiresAt };
   }
 
+  // ✅ Realtime (si webhook met à jour, refresh auto)
   useEffect(() => {
-    const hasPending = items.some((b) => String(b.status || "").toLowerCase() === "pending");
+    if (!sessionUid) return;
+
+    const channel = supabase
+      .channel(`bookings-renter-${sessionUid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `renter_id=eq.${sessionUid}` }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUid]);
+
+  // Tick seulement si au moins une booking “pending”
+  useEffect(() => {
+    const hasPending = items.some((b) => {
+      const statusKey = String(b.status || "").toLowerCase();
+      const payKey = String(b.payment_status || "").toLowerCase();
+      const isConfirmed = isConfirmedLike(statusKey, payKey);
+      const isPending = statusKey === "pending" && !isConfirmed;
+      return isPending;
+    });
     if (!hasPending) return;
 
     const t = setInterval(() => setNowTick(Date.now()), 1000);
@@ -384,15 +443,17 @@ export default function MyBookingsClient() {
       if (paid === "1") {
         setKeepSuccessBanner(true);
 
+        // ✅ Optimiste: on masque le bouton payer pour l’ID qu’on reçoit
+        if (bookingIdFromUrl) setOptimisticPaidBookingId(bookingIdFromUrl);
+
         if (bookingIdFromUrl) {
           setSyncing(true);
 
-          const maxTries = 12;
+          const maxTries = 20;
           for (let i = 0; i < maxTries && alive; i++) {
             const st = await fetchBookingState(bookingIdFromUrl);
 
-            const synced =
-              !!st && (st.pay === "paid" || st.status === "confirmed" || st.status === "paid" || st.expiresAt === null);
+            const synced = !!st && (st.pay === "paid" || st.pay === "succeeded" || st.status === "confirmed" || st.status === "paid");
 
             if (synced) {
               await loadData();
@@ -491,7 +552,6 @@ export default function MyBookingsClient() {
       }
 
       const url = typeof json === "object" && json && "url" in json ? String((json as { url?: unknown }).url || "") : "";
-
       if (!url) throw new Error("URL de paiement manquante.");
 
       window.location.href = url;
@@ -501,7 +561,6 @@ export default function MyBookingsClient() {
     }
   }
 
-  // ✅ Filtrage + ✅ tri (pending en haut)
   const filteredItems = useMemo(() => {
     const base = items.filter((b) => {
       const statusKey = String(b.status || "").toLowerCase();
@@ -511,7 +570,6 @@ export default function MyBookingsClient() {
       if (filter === "all") return true;
       if (filter === "cancelled") return isCancelled;
       if (filter === "past") return !isCancelled && isPast;
-      // active
       return !isCancelled && !isPast;
     });
 
@@ -520,8 +578,14 @@ export default function MyBookingsClient() {
       const aStatus = String(a.status || "").toLowerCase();
       const bStatus = String(b.status || "").toLowerCase();
 
-      const aIsPending = aStatus === "pending";
-      const bIsPending = bStatus === "pending";
+      const aPay = String(a.payment_status || "").toLowerCase();
+      const bPay = String(b.payment_status || "").toLowerCase();
+
+      const aIsConfirmed = isConfirmedLike(aStatus, aPay);
+      const bIsConfirmed = isConfirmedLike(bStatus, bPay);
+
+      const aIsPending = aStatus === "pending" && !aIsConfirmed;
+      const bIsPending = bStatus === "pending" && !bIsConfirmed;
 
       const aExp = safeTime(a.expires_at) ?? null;
       const bExp = safeTime(b.expires_at) ?? null;
@@ -549,8 +613,7 @@ export default function MyBookingsClient() {
 
   if (checking) return <main className="bl-container">Chargement…</main>;
 
-  const activeLabel =
-    filter === "all" ? "Tout" : filter === "active" ? "En cours" : filter === "past" ? "Passées" : "Annulées";
+  const activeLabel = filter === "all" ? "Tout" : filter === "active" ? "En cours" : filter === "past" ? "Passées" : "Annulées";
 
   return (
     <main className="bl-container">
@@ -562,48 +625,18 @@ export default function MyBookingsClient() {
         </button>
       </div>
 
-      {/* ✅ Filtres CLEAN : un seul style "actif" */}
       <div style={{ marginTop: 12 }}>
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          }}
-        >
-          <button
-            className={filterBtnClass(filter === "all")}
-            style={{ marginTop: 0, fontWeight: 950 }}
-            aria-pressed={filter === "all"}
-            onClick={() => setFilter("all")}
-          >
+        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+          <button className={filterBtnClass(filter === "all")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
             Tout
           </button>
-
-          <button
-            className={filterBtnClass(filter === "active")}
-            style={{ marginTop: 0, fontWeight: 950 }}
-            aria-pressed={filter === "active"}
-            onClick={() => setFilter("active")}
-          >
+          <button className={filterBtnClass(filter === "active")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "active"} onClick={() => setFilter("active")}>
             En cours
           </button>
-
-          <button
-            className={filterBtnClass(filter === "past")}
-            style={{ marginTop: 0, fontWeight: 950 }}
-            aria-pressed={filter === "past"}
-            onClick={() => setFilter("past")}
-          >
+          <button className={filterBtnClass(filter === "past")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "past"} onClick={() => setFilter("past")}>
             Passées
           </button>
-
-          <button
-            className={filterBtnClass(filter === "cancelled")}
-            style={{ marginTop: 0, fontWeight: 950 }}
-            aria-pressed={filter === "cancelled"}
-            onClick={() => setFilter("cancelled")}
-          >
+          <button className={filterBtnClass(filter === "cancelled")} style={{ marginTop: 0, fontWeight: 950 }} aria-pressed={filter === "cancelled"} onClick={() => setFilter("cancelled")}>
             Annulées
           </button>
         </div>
@@ -679,15 +712,7 @@ export default function MyBookingsClient() {
       )}
 
       {showCanceledBanner && (
-        <div
-          className="bl-alert"
-          style={{
-            border: "1px solid rgba(245,158,11,0.35)",
-            background: "rgba(245,158,11,0.10)",
-            marginBottom: 14,
-            marginTop: 12,
-          }}
-        >
+        <div className="bl-alert" style={{ border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.10)", marginBottom: 14, marginTop: 12 }}>
           <strong>Paiement annulé.</strong> Aucun débit n’a été effectué.
         </div>
       )}
@@ -707,31 +732,34 @@ export default function MyBookingsClient() {
             const statusKey = String(b.status || "").toLowerCase();
             const payKey = String(b.payment_status || "").toLowerCase();
 
-            const isPending = statusKey === "pending";
-            const isConfirmed = statusKey === "confirmed";
-            const isPaid = payKey === "paid" || statusKey === "paid";
+            // ✅ Optimiste robuste: compare ids normalisés
+            const optimisticPaid = !!optimisticPaidBookingId && normalizeId(optimisticPaidBookingId) === normalizeId(b.id);
+
             const isCancelled = statusKey === "cancelled" || statusKey === "canceled";
+            const isConfirmed = optimisticPaid || isConfirmedLike(statusKey, payKey);
+            const isPaid = optimisticPaid || isPaidLike(statusKey, payKey);
+
+            // ✅ pending seulement si PAS confirmé
+            const isPending = statusKey === "pending" && !isConfirmed;
 
             const isPayingThis = payingId === b.id;
 
-            const isFocused = !!focusId && focusId === b.id;
+            const isFocused = !!focusId && focusId === normalizeId(b.id);
             const isHighlighted = highlightId === b.id;
 
             const expiresAt = b.expires_at ? new Date(b.expires_at).getTime() : null;
             const msLeft = expiresAt ? expiresAt - nowTick : null;
-            const isExpired = isPending && typeof msLeft === "number" && msLeft <= 0;
 
-            const reviewEligible = !isPending && !isCancelled && (isConfirmed || isPaid) && isStayFinished(b.end_date);
+            const isExpired = isPending && typeof msLeft === "number" && msLeft <= 0;
+            const reviewEligible = !isPending && !isCancelled && isConfirmed && isStayFinished(b.end_date);
             const hasReview = !!reviewIdByBookingId[b.id];
 
             let badge: React.ReactNode = <PillBadge tone="neutral">{formatStatusFR(b.status)}</PillBadge>;
-            if (isConfirmed) badge = <PillBadge tone="neutral">confirmée</PillBadge>;
-            else if (isPaid) badge = <PillBadge tone="success">Payée</PillBadge>;
+            if (isPaid) badge = <PillBadge tone="success">Payée</PillBadge>;
+            else if (isConfirmed) badge = <PillBadge tone="neutral">confirmée</PillBadge>;
             else if (isPending)
               badge = (
-                <PillBadge tone={isExpired ? "danger" : "warning"}>
-                  {isExpired ? "Option expirée" : "Option (en attente)"}
-                </PillBadge>
+                <PillBadge tone={isExpired ? "danger" : "warning"}>{isExpired ? "Option expirée" : "Option (en attente)"}</PillBadge>
               );
             else if (isCancelled) badge = <PillBadge tone="danger">Annulée</PillBadge>;
 
@@ -741,7 +769,7 @@ export default function MyBookingsClient() {
               <div
                 key={b.id}
                 ref={(el) => {
-                  cardRefs.current[b.id] = el;
+                  cardRefs.current[normalizeId(b.id)] = el;
                 }}
                 className="bl-card"
                 style={{
@@ -749,11 +777,7 @@ export default function MyBookingsClient() {
                   borderRadius: 16,
                   border: isFocused ? "2px solid rgba(17, 24, 39, 0.9)" : "1px solid rgba(0,0,0,0.08)",
                   background: isFocused ? "rgba(17, 24, 39, 0.02)" : "white",
-                  boxShadow: isHighlighted
-                    ? "0 0 0 6px rgba(17, 24, 39, 0.10)"
-                    : isFocused
-                    ? "0 10px 24px rgba(0,0,0,0.10)"
-                    : undefined,
+                  boxShadow: isHighlighted ? "0 0 0 6px rgba(17, 24, 39, 0.10)" : isFocused ? "0 10px 24px rgba(0,0,0,0.10)" : undefined,
                   transition: "box-shadow 220ms ease, border-color 220ms ease",
                   opacity: isExpired ? 0.88 : 1,
                 }}
@@ -762,17 +786,7 @@ export default function MyBookingsClient() {
                   <Link href={`/listing/${b.listing_id}`} className="bl-booking-media" style={{ textDecoration: "none" }}>
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={cover}
-                        alt={listing?.title ?? "Annonce"}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          borderRadius: 12,
-                          display: "block",
-                        }}
-                      />
+                      <img src={cover} alt={listing?.title ?? "Annonce"} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12, display: "block" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: "rgba(0,0,0,0.05)", borderRadius: 12 }} />
                     )}
@@ -801,13 +815,7 @@ export default function MyBookingsClient() {
                     {isPending ? (
                       <>
                         <PrimaryButton onClick={() => payBooking(b.id)} disabled={!!payingId || syncing || isPayingThis || isExpired}>
-                          {isExpired
-                            ? "Option expirée"
-                            : isPayingThis
-                            ? "Redirection…"
-                            : syncing
-                            ? "Synchronisation…"
-                            : "Payer maintenant"}
+                          {isExpired ? "Option expirée" : isPayingThis ? "Redirection…" : syncing ? "Synchronisation…" : "Payer maintenant"}
                         </PrimaryButton>
 
                         <div className="bl-actions-grid">
@@ -818,13 +826,7 @@ export default function MyBookingsClient() {
                     ) : (
                       <>
                         <div style={{ marginTop: 10, opacity: 0.75, fontSize: 13, fontWeight: 850 }}>
-                          {isConfirmed
-                            ? "Réservation confirmée. Paiement reçu."
-                            : isPaid
-                            ? "Paiement reçu."
-                            : isCancelled
-                            ? "Option expirée / réservation annulée."
-                            : "Statut mis à jour."}
+                          {isConfirmed ? "Réservation confirmée. Paiement reçu." : isPaid ? "Paiement reçu." : isCancelled ? "Option expirée / réservation annulée." : "Statut mis à jour."}
                         </div>
 
                         <div className="bl-actions-grid" style={{ marginTop: 10 }}>
@@ -832,9 +834,7 @@ export default function MyBookingsClient() {
                           <SecondaryLinkButton href={`/messages/${b.id}?autostart=1`}>Contacter l’hôte</SecondaryLinkButton>
 
                           {reviewEligible && (
-                            <SecondaryLinkButton
-                              href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(b.id)}#reviews`}
-                            >
+                            <SecondaryLinkButton href={`/listing/${b.listing_id}?review=1&bookingId=${encodeURIComponent(b.id)}#reviews`}>
                               {hasReview ? "Modifier mon avis" : "Laisser un avis"}
                             </SecondaryLinkButton>
                           )}
@@ -849,7 +849,6 @@ export default function MyBookingsClient() {
         </div>
       )}
 
-      {/* Styles responsive "local" à cette page */}
       <style jsx global>{`
         .bl-booking-row {
           display: grid;
