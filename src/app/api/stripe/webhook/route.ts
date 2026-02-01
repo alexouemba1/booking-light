@@ -10,20 +10,6 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// ✅ Lazy init Stripe (évite crash build si STRIPE_SECRET_KEY absente au chargement)
-let stripeSingleton: Stripe | null = null;
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Config manquante: STRIPE_SECRET_KEY");
-  if (!stripeSingleton) {
-    stripeSingleton = new Stripe(key, {
-      // ✅ Optionnel mais recommandé pour stabilité
-      // apiVersion: "2024-06-20",
-    });
-  }
-  return stripeSingleton;
-}
-
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -40,10 +26,33 @@ function isExpired(expiresAt?: string | null) {
 }
 
 /* =========================
-   EMAIL (SMTP Gmail / Workspace)
+   STRIPE (lazy init)
+========================= */
+
+let stripeSingleton: Stripe | null = null;
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Config manquante: STRIPE_SECRET_KEY");
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(key, {
+      // apiVersion: "2024-06-20",
+    });
+  }
+  return stripeSingleton;
+}
+
+/* =========================
+   EMAIL (SMTP)
 ========================= */
 
 let mailerSingleton: nodemailer.Transporter | null = null;
+
+function hasSmtpConfig() {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  return Boolean(host && user && pass);
+}
 
 function getMailer() {
   const host = process.env.SMTP_HOST;
@@ -59,7 +68,7 @@ function getMailer() {
     mailerSingleton = nodemailer.createTransport({
       host,
       port,
-      secure: false, // 587 = STARTTLS
+      secure: port === 465, // 465 = TLS direct, 587 = STARTTLS
       auth: { user, pass },
     });
   }
@@ -105,10 +114,13 @@ async function sendPaymentConfirmationEmail(params: {
 }) {
   const { admin, renterId, bookingId } = params;
 
+  if (!hasSmtpConfig()) {
+    throw new Error("SMTP non configuré sur le serveur (env SMTP_* manquantes).");
+  }
+
   const to = await getUserEmailById(admin, renterId);
   if (!to) {
-    console.warn("[webhook] email: renter email introuvable", { renterId, bookingId });
-    return;
+    throw new Error(`Email introuvable pour renterId=${renterId}`);
   }
 
   const smtpUser = process.env.SMTP_USER!;
@@ -124,6 +136,8 @@ async function sendPaymentConfirmationEmail(params: {
     to,
     messageId: info.messageId,
     accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
   });
 }
 
@@ -143,7 +157,12 @@ async function maybeCreateAutoMessage(params: {
 }) {
   const { admin, bookingId, renterId, hostId } = params;
 
-  const { data: existing, error: exErr } = await admin.from("messages").select("id").eq("booking_id", bookingId).limit(1);
+  const { data: existing, error: exErr } = await admin
+    .from("messages")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .limit(1);
+
   if (exErr) {
     console.warn("[webhook] auto-message: check existing failed:", exErr.message);
     return;
@@ -175,7 +194,7 @@ async function maybeCreateAutoMessage(params: {
 }
 
 /* =========================
-   Stripe helpers
+   Stripe events log helpers
 ========================= */
 
 async function tryLogStripeEvent(params: { admin: SupabaseClient<any, any, any>; event: Stripe.Event }) {
@@ -204,23 +223,47 @@ async function tryLogStripeEvent(params: { admin: SupabaseClient<any, any, any>;
   }
 }
 
-async function markStripeEventDone(params: { admin: SupabaseClient<any, any, any>; eventId: string; patch: Record<string, any> }) {
+async function markStripeEventDone(params: {
+  admin: SupabaseClient<any, any, any>;
+  eventId: string;
+  patch: Record<string, any>;
+}) {
   const { admin, eventId, patch } = params;
   try {
-    await admin.from("stripe_events").update({ ...patch, processed_at: new Date().toISOString() }).eq("id", eventId);
+    await admin
+      .from("stripe_events")
+      .update({ ...patch, processed_at: new Date().toISOString() })
+      .eq("id", eventId);
   } catch {
     // non bloquant
   }
 }
 
-async function resolveBookingIdFromCheckoutSession(params: { admin: SupabaseClient<any, any, any>; session: Stripe.Checkout.Session }) {
+function shortErr(e: any) {
+  const msg = asString(e?.message || e);
+  return msg.length > 600 ? msg.slice(0, 600) + "…" : msg;
+}
+
+/* =========================
+   BookingId resolvers
+========================= */
+
+async function resolveBookingIdFromCheckoutSession(params: {
+  admin: SupabaseClient<any, any, any>;
+  session: Stripe.Checkout.Session;
+}) {
   const { admin, session } = params;
 
   const sessionId = asString(session.id).trim();
   const bookingIdFromMetadata = asString(session?.metadata?.bookingId).trim();
   if (bookingIdFromMetadata) return bookingIdFromMetadata;
 
-  const { data, error } = await admin.from("bookings").select("id").eq("stripe_checkout_session_id", sessionId).maybeSingle();
+  const { data, error } = await admin
+    .from("bookings")
+    .select("id")
+    .eq("stripe_checkout_session_id", sessionId)
+    .maybeSingle();
+
   if (error) throw new Error(`Fallback lookup error: ${error.message}`);
   return data?.id ? String(data.id) : null;
 }
@@ -245,11 +288,9 @@ async function resolveBookingIdFromPaymentIntent(params: {
   }
 }
 
-// ✅ Nouveau : décide si on considère la session “payée”
 async function isCheckoutPaidOrSucceeded(stripe: Stripe, session: Stripe.Checkout.Session) {
   if (session.payment_status === "paid") return true;
 
-  // fallback : si payment_intent existe, on vérifie son status
   const piId =
     typeof session.payment_intent === "string"
       ? session.payment_intent
@@ -264,6 +305,10 @@ async function isCheckoutPaidOrSucceeded(stripe: Stripe, session: Stripe.Checkou
     return false;
   }
 }
+
+/* =========================
+   WEBHOOK
+========================= */
 
 export async function POST(req: Request) {
   const t0 = Date.now();
@@ -305,7 +350,6 @@ export async function POST(req: Request) {
   await tryLogStripeEvent({ admin, event });
 
   try {
-    // ✅ On traite aussi les paiements async
     const isCheckoutCompleted = event.type === "checkout.session.completed";
     const isCheckoutAsyncSucceeded = event.type === "checkout.session.async_payment_succeeded";
     const isCheckoutAsyncFailed = event.type === "checkout.session.async_payment_failed";
@@ -316,9 +360,12 @@ export async function POST(req: Request) {
       return j({ ok: true, ignored: event.type }, 200);
     }
 
-    // Si async failed : on log et on sort (optionnel : annuler booking)
     if (isCheckoutAsyncFailed) {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "processed", note: "async_payment_failed" } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "processed", note: "async_payment_failed" },
+      });
       return j({ ok: true }, 200);
     }
 
@@ -339,8 +386,6 @@ export async function POST(req: Request) {
 
       const paidOk = await isCheckoutPaidOrSucceeded(stripe, session);
       if (!paidOk) {
-        // ✅ En prod, ça peut être “pas encore payé” → on NE le marque plus "ignored" définitivement
-        // On le laisse passer : l’event PI succeeded ou async_succeeded confirmera plus tard.
         await markStripeEventDone({
           admin,
           eventId: event.id,
@@ -351,7 +396,9 @@ export async function POST(req: Request) {
 
       sessionId = asString(session.id).trim();
       paymentIntentId =
-        typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent as any)?.id ?? null;
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : (session.payment_intent as any)?.id ?? null;
 
       bookingId = await resolveBookingIdFromCheckoutSession({ admin, session });
     }
@@ -360,7 +407,11 @@ export async function POST(req: Request) {
       const pi = event.data.object as Stripe.PaymentIntent;
 
       if (String(pi.status || "").toLowerCase() !== "succeeded") {
-        await markStripeEventDone({ admin, eventId: event.id, patch: { status: "ignored", error: "pi.status != succeeded" } });
+        await markStripeEventDone({
+          admin,
+          eventId: event.id,
+          patch: { status: "ignored", error: "pi.status != succeeded" },
+        });
         return j({ ok: true }, 200);
       }
 
@@ -369,7 +420,11 @@ export async function POST(req: Request) {
     }
 
     if (!bookingId) {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: "Booking introuvable (bookingId introuvable)." } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "error", error: "Booking introuvable (bookingId introuvable)." },
+      });
       return j({ error: "Booking introuvable (bookingId introuvable)." }, 400);
     }
 
@@ -380,7 +435,11 @@ export async function POST(req: Request) {
       .single();
 
     if (curErr || !current) {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: "Booking introuvable (ou non lisible).", booking_id: bookingId } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "error", error: "Booking introuvable (ou non lisible).", booking_id: bookingId },
+      });
       return j({ error: "Booking introuvable (ou non lisible)." }, 404);
     }
 
@@ -388,24 +447,36 @@ export async function POST(req: Request) {
     const statusLower = asString(current.status).toLowerCase();
 
     if (statusLower === "cancelled" || statusLower === "canceled") {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "ignored", error: "booking cancelled", booking_id: bookingId } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "ignored", error: "booking cancelled", booking_id: bookingId },
+      });
       return j({ ok: true }, 200);
     }
 
     if (isExpired((current as any).expires_at)) {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "ignored", error: "booking expired (server-side)", booking_id: bookingId } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "ignored", error: "booking expired (server-side)", booking_id: bookingId },
+      });
       return j({ ok: true }, 200);
     }
 
     if (sessionId) {
       const currentSessionId = asString((current as any).stripe_checkout_session_id).trim();
       if (currentSessionId && currentSessionId !== sessionId) {
-        await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: "stripe_checkout_session_id mismatch", booking_id: bookingId } });
+        await markStripeEventDone({
+          admin,
+          eventId: event.id,
+          patch: { status: "error", error: "stripe_checkout_session_id mismatch", booking_id: bookingId },
+        });
         return j({ error: "Session mismatch" }, 400);
       }
     }
 
-    // déjà confirmé
+    // Déjà confirmé => on tente quand même auto-message + email (et on log si ça échoue)
     if (payLower === "paid" || statusLower === "confirmed" || statusLower === "paid") {
       try {
         const renterId = String((current as any).renter_id || "");
@@ -415,18 +486,37 @@ export async function POST(req: Request) {
           const hostId = listing?.user_id ? String(listing.user_id) : "";
           if (hostId) await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
         }
-      } catch {}
+      } catch (e: any) {
+        console.warn("[webhook] auto-message (already confirmed) failed:", shortErr(e));
+      }
 
+      let emailOk = true;
       try {
         const renterId = String((current as any).renter_id || "");
         if (renterId && bookingId) await sendPaymentConfirmationEmail({ admin, renterId, bookingId });
-      } catch {}
+      } catch (e: any) {
+        emailOk = false;
+        console.warn("[webhook] email (already confirmed) failed:", shortErr(e));
+        await markStripeEventDone({
+          admin,
+          eventId: event.id,
+          patch: {
+            status: "processed",
+            booking_id: bookingId,
+            note: "booking already confirmed; email failed",
+            error: shortErr(e),
+          },
+        });
+      }
 
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "processed", booking_id: bookingId } });
+      if (emailOk) {
+        await markStripeEventDone({ admin, eventId: event.id, patch: { status: "processed", booking_id: bookingId } });
+      }
+
       return j({ ok: true }, 200);
     }
 
-    // ✅ Update booking
+    // Update booking
     const updatePayload: any = {
       status: "confirmed",
       payment_status: "paid",
@@ -444,7 +534,11 @@ export async function POST(req: Request) {
       .single();
 
     if (upErr || !updated) {
-      await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: `Update failed: ${upErr?.message ?? "?"}`, booking_id: bookingId } });
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: { status: "error", error: `Update failed: ${upErr?.message ?? "?"}`, booking_id: bookingId },
+      });
       return j({ error: `Update failed: ${upErr?.message ?? "unknown"}` }, 500);
     }
 
@@ -457,13 +551,30 @@ export async function POST(req: Request) {
         const hostId = listing?.user_id ? String(listing.user_id) : "";
         if (hostId) await maybeCreateAutoMessage({ admin, bookingId, renterId, hostId });
       }
-    } catch {}
+    } catch (e: any) {
+      console.warn("[webhook] auto-message failed:", shortErr(e));
+    }
 
-    // email
+    // email (ici on LOG + DB si échec)
     try {
       const renterId = String((updated as any).renter_id || "");
       if (renterId && bookingId) await sendPaymentConfirmationEmail({ admin, renterId, bookingId });
-    } catch {}
+    } catch (e: any) {
+      console.warn("[webhook] email failed:", shortErr(e));
+      await markStripeEventDone({
+        admin,
+        eventId: event.id,
+        patch: {
+          status: "processed",
+          booking_id: bookingId,
+          note: "booking confirmed; email failed",
+          error: shortErr(e),
+        },
+      });
+
+      console.log("[webhook] DONE (email failed) en", Date.now() - t0, "ms");
+      return j({ ok: true, emailFailed: true }, 200);
+    }
 
     await markStripeEventDone({ admin, eventId: event.id, patch: { status: "processed", booking_id: bookingId } });
 
@@ -472,7 +583,13 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error("[webhook] erreur interne", e?.message);
     try {
-      if (event?.id) await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: e?.message ?? "Erreur webhook." } });
+      if (event?.id) {
+        await markStripeEventDone({
+          admin,
+          eventId: event.id,
+          patch: { status: "error", error: e?.message ?? "Erreur webhook." },
+        });
+      }
     } catch {}
     return j({ error: e?.message ?? "Erreur webhook." }, 500);
   }
