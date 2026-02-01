@@ -208,25 +208,7 @@ export default function TopbarClient() {
 
   return (
     <>
-      {/* ================= BANNIÈRE INFO PAIEMENT ================= */}
-      <div
-        role="status"
-        aria-live="polite"
-        style={{
-          background: "#FEF3C7",
-          color: "#92400E",
-          textAlign: "center",
-          fontSize: 14,
-          fontWeight: 700,
-          padding: "8px 12px",
-          borderBottom: "1px solid rgba(0,0,0,0.08)",
-        }}
-      >
-        <strong>ℹ️ Paiement en cours d’activation</strong> — Les paiements sont temporairement
-        indisponibles. Vous pouvez dès maintenant <strong>publier et gérer vos annonces</strong>.
-        La <strong>réservation et le paiement</strong> seront activés très prochainement.
-      </div>
-      {/* ========================================================== */}
+      
 
       <header className="bl-topbar">
         <div className="bl-topbar-inner">
