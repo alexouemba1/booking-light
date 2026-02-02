@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+const APP_URL_ENV = process.env.NEXT_PUBLIC_APP_URL;
 
 const PLATFORM_FEE_PCT = 0.14;
 
@@ -37,7 +37,6 @@ function j(data: any, status = 200) {
 }
 
 function normalizeBaseUrl(url: string) {
-  // retire trailing slash
   return url.replace(/\/+$/, "");
 }
 
@@ -48,15 +47,38 @@ function buildReturnUrl(base: string, path: string, params: Record<string, strin
   return u.toString();
 }
 
+/**
+ * ✅ Base URL robuste:
+ * - Priorité: host réel de la requête (Vercel reverse proxy)
+ * - Fallback: NEXT_PUBLIC_APP_URL
+ */
+function getBaseUrlFromRequest(req: Request) {
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    "";
+
+  if (host) return normalizeBaseUrl(`${proto}://${host}`);
+
+  if (APP_URL_ENV) return normalizeBaseUrl(APP_URL_ENV);
+
+  return "";
+}
+
 export async function POST(req: Request) {
   try {
-    // ✅ Vérifs config (hors Stripe, Stripe est vérifié dans getStripe())
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !APP_URL) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return j(
-        {
-          error:
-            "Config manquante (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_APP_URL).",
-        },
+        { error: "Config manquante (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)." },
+        500
+      );
+    }
+
+    const baseUrl = getBaseUrlFromRequest(req);
+    if (!baseUrl) {
+      return j(
+        { error: "Impossible de déterminer l’URL de base (host manquant + NEXT_PUBLIC_APP_URL vide)." },
         500
       );
     }
@@ -72,7 +94,7 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
-    // ✅ 0) Vérifier le user depuis le token (et récupérer son id)
+    // ✅ Vérifier le user depuis le token
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     const authedUserId = userData?.user?.id ?? null;
 
@@ -80,7 +102,7 @@ export async function POST(req: Request) {
       return j({ error: "Non authentifié (token invalide)." }, 401);
     }
 
-    // 1) Lire la réservation (avec expires_at + payment_status)
+    // 1) Lire la réservation
     const { data: booking, error: bErr } = await admin
       .from("bookings")
       .select("id, renter_id, listing_id, total_cents, status, payment_status, expires_at")
@@ -89,7 +111,7 @@ export async function POST(req: Request) {
 
     if (bErr || !booking) return j({ error: "Réservation introuvable." }, 404);
 
-    // ✅ 1bis) Sécurité: interdire de payer la réservation de quelqu’un d’autre
+    // ✅ Sécurité: interdire de payer la réservation de quelqu’un d’autre
     if (String(booking.renter_id) !== String(authedUserId)) {
       return j({ error: "Accès refusé (réservation d’un autre utilisateur)." }, 403);
     }
@@ -98,7 +120,6 @@ export async function POST(req: Request) {
     const statusKey = String(booking.status || "").toLowerCase();
     const payKey = String(booking.payment_status || "unpaid").toLowerCase();
 
-    // ✅ Anti double paiement
     if (payKey === "paid" || statusKey === "paid" || statusKey === "confirmed") {
       return j({ error: "Cette réservation est déjà payée." }, 400);
     }
@@ -107,12 +128,11 @@ export async function POST(req: Request) {
       return j({ error: "Cette réservation est annulée (option expirée)." }, 400);
     }
 
-    // ✅ Recommandé : on ne paie que si la réservation est en "pending"
     if (statusKey !== "pending") {
       return j({ error: "Cette réservation n’est pas en attente de paiement." }, 400);
     }
 
-    // Expiration côté serveur (double sécurité)
+    // Expiration côté serveur
     if (booking.expires_at) {
       const exp = new Date(String(booking.expires_at)).getTime();
       if (Number.isFinite(exp) && exp <= Date.now()) {
@@ -152,10 +172,7 @@ export async function POST(req: Request) {
     const destinationAccount = String(hostProfile?.stripe_account_id || "").trim();
     if (pErr || !destinationAccount || !destinationAccount.startsWith("acct_")) {
       return j(
-        {
-          error:
-            "Hôte non configuré Stripe Connect (profiles.stripe_account_id manquant ou invalide).",
-        },
+        { error: "Hôte non configuré Stripe Connect (profiles.stripe_account_id manquant ou invalide)." },
         400
       );
     }
@@ -163,7 +180,6 @@ export async function POST(req: Request) {
     // 5) Commission
     const platformFee = Math.max(0, Math.round(total * PLATFORM_FEE_PCT));
     if (platformFee >= total) return j({ error: "Commission invalide (>= total)." }, 400);
-
     const subtotal = total - platformFee;
 
     await admin
@@ -171,24 +187,22 @@ export async function POST(req: Request) {
       .update({ platform_fee_cents: platformFee, subtotal_cents: subtotal })
       .eq("id", bookingId);
 
-    // 6) URLs retour (✅ + focus pour surligner la card au retour Stripe)
-    const successUrl = buildReturnUrl(APP_URL, "/my-bookings", {
+    // 6) URLs retour (baseUrl réel)
+    const successUrl = buildReturnUrl(baseUrl, "/my-bookings", {
       paid: "1",
       bookingId: String(bookingId),
       focus: String(bookingId),
     });
 
-    const cancelUrl = buildReturnUrl(APP_URL, "/my-bookings", {
+    const cancelUrl = buildReturnUrl(baseUrl, "/my-bookings", {
       canceled: "1",
       bookingId: String(bookingId),
       focus: String(bookingId),
     });
 
-    // ✅ Instancier Stripe ici (lazy)
     const stripe = getStripe();
 
     // 7) Stripe Checkout + split Connect
-    // ✅ IMPORTANT : idempotencyKey => si double clic / retry réseau => pas de double session
     const session = await stripe.checkout.sessions.create(
       {
         mode: "payment",
