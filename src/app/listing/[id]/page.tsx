@@ -27,7 +27,10 @@ type Listing = {
   city: string;
   kind: string;
   price_cents: number;
-  billing_unit: "night" | "day" | "week";
+
+  // ✅ AJOUT month
+  billing_unit: "night" | "day" | "week" | "month";
+
   cover_image_path: string | null;
 
   rating_avg: number;
@@ -65,6 +68,7 @@ function formatUnit(u: string) {
   if (u === "night") return "nuit";
   if (u === "day") return "jour";
   if (u === "week") return "semaine";
+  if (u === "month") return "mois"; // ✅ AJOUT
   return u;
 }
 
@@ -256,11 +260,11 @@ function StarsInline({ value, count }: { value: number; count: number }) {
       <span aria-label={`Note ${clamped.toFixed(1)} sur 5`} style={{ display: "inline-flex", gap: 1 }}>
         {stars}
       </span>
+
       {showCount && (
-        <>
-          <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.75 }}>{count}</span>
-          <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.6 }}>({count})</span>
-        </>
+        <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.7 }}>
+          ({count})
+        </span>
       )}
     </div>
   );
@@ -314,6 +318,12 @@ export default function ListingPage() {
   const [reviewComment, setReviewComment] = useState<string>("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
+
+  // ✅ NEW: aperçu du dernier avis pour affichage en haut
+  const latestReview = useMemo(() => {
+    if (!reviews || reviews.length === 0) return null;
+    return reviews[0];
+  }, [reviews]);
 
   /* =======================
      Lightbox
@@ -447,7 +457,7 @@ export default function ListingPage() {
         city: String(l.city || ""),
         kind: String(l.kind || ""),
         price_cents: Number(l.price_cents || 0),
-        billing_unit: l.billing_unit as any,
+        billing_unit: l.billing_unit as any, // ✅ month accepté
         cover_image_path: l.cover_image_path ? String(l.cover_image_path) : null,
         rating_avg: Number.isFinite(Number(l.rating_avg)) ? Number(l.rating_avg) : 0,
         rating_count: Number.isFinite(Number(l.rating_count)) ? Number(l.rating_count) : 0,
@@ -616,8 +626,11 @@ export default function ListingPage() {
     const d = daysBetween(s, e);
 
     let units = 1;
+
+    // ✅ AJOUT: month
     if (listing.billing_unit === "night" || listing.billing_unit === "day") units = Math.max(1, d);
     if (listing.billing_unit === "week") units = Math.max(1, Math.ceil(d / 7));
+    if (listing.billing_unit === "month") units = Math.max(1, Math.ceil(d / 30)); // mois ≈ 30 jours
 
     return units * listing.price_cents;
   }, [listing, startDate, endDate]);
@@ -878,6 +891,57 @@ export default function ListingPage() {
             </button>
           </div>
         </div>
+
+        {/* ✅ NEW: aperçu du dernier avis en haut (visible sans scroller) */}
+        {latestReview && (
+          <div
+            style={{
+              marginTop: 10,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(0,0,0,0.02)",
+              borderRadius: 14,
+              padding: 12,
+              display: "grid",
+              gap: 6,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <StarsInline value={latestReview.rating} count={0} />
+                <span style={{ fontSize: 12, fontWeight: 900, opacity: 0.65 }}>
+                  Dernier avis · {new Date(latestReview.created_at).toLocaleDateString("fr-FR")}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="bl-btn"
+                style={{ height: 34, padding: "0 10px", borderRadius: 999, fontWeight: 900 }}
+                onClick={() => reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                title="Aller aux avis"
+              >
+                Lire
+              </button>
+            </div>
+
+            {latestReview.comment ? (
+              <div
+                style={{
+                  fontWeight: 850,
+                  opacity: 0.86,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {latestReview.comment}
+              </div>
+            ) : (
+              <div style={{ fontWeight: 850, opacity: 0.75 }}>Avis sans commentaire.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {successMsg && <div className="bl-alert bl-alert-success">{successMsg}</div>}
@@ -1329,7 +1393,6 @@ export default function ListingPage() {
         </div>
       )}
 
-      {/* Page-specific responsive helpers (no global CSS changes needed) */}
       <style jsx global>{`
         .bl-priceRow {
           margin-top: 10px;

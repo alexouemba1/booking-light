@@ -1,10 +1,12 @@
+// FILE: src/app/api/book/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BillingUnit = "night" | "day" | "week";
+// ✅ AJOUT month
+type BillingUnit = "night" | "day" | "week" | "month";
 
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
@@ -74,11 +76,6 @@ export async function POST(req: Request) {
     // 4) Conflits
     const nowIso = new Date().toISOString();
 
-    // Conflit si overlap:
-    // existing.start_date < end_date AND existing.end_date > start_date
-    // bloque si:
-    // - paid/confirmed
-    // - pending non expirée (expires_at null ou > now)
     const { data: conflicts, error: conflictErr } = await admin
       .from("bookings")
       .select("id,start_date,end_date,status,expires_at")
@@ -96,12 +93,30 @@ export async function POST(req: Request) {
     }
 
     // 5) Prix
-    const billing_unit = listing.billing_unit as BillingUnit;
-    const d = daysBetween(s, e);
+    const rawUnit = String(listing.billing_unit || "").trim().toLowerCase();
+    const billing_unit = rawUnit as BillingUnit;
+
+    const dRaw = daysBetween(s, e);
+    const d = Math.max(1, dRaw); // sécurité
+
+    // ✅ Option recommandé: minimum de durée si "month"
+    // (évite des réservations “au mois” de 3 jours ou des surprises de pricing)
+    if (billing_unit === "month" && d < 30) {
+      return j({ error: "Pour une location au mois, la durée minimale est de 30 jours." }, 400);
+    }
 
     let units = 1;
-    if (billing_unit === "night" || billing_unit === "day") units = Math.max(1, d);
-    if (billing_unit === "week") units = Math.max(1, Math.ceil(d / 7));
+
+    if (billing_unit === "night" || billing_unit === "day") {
+      units = Math.max(1, d);
+    } else if (billing_unit === "week") {
+      units = Math.max(1, Math.ceil(d / 7));
+    } else if (billing_unit === "month") {
+      // ✅ mois ≈ 30 jours (même règle que sur la page listing)
+      units = Math.max(1, Math.ceil(d / 30));
+    } else {
+      return j({ error: "Unité de facturation invalide (billing_unit)." }, 400);
+    }
 
     const total_cents = units * Number(listing.price_cents || 0);
     if (!Number.isFinite(total_cents) || total_cents <= 0) return j({ error: "Montant invalide." }, 400);

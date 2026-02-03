@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
  * - NEXT_PUBLIC_SITE_URL (ex: "https://bookinglight.com" ou "http://localhost:3000")
  */
 
+type BillingUnit = "night" | "day" | "week" | "month";
+
 function j(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
@@ -81,7 +83,6 @@ async function sendEmailResend(args: {
   };
 
   // Idempotence (anti double-envoi en cas de retry)
-  // Resend supporte un header Idempotency-Key (si non supporté, il est ignoré côté serveur)
   if (args.idempotencyKey) headers["Idempotency-Key"] = args.idempotencyKey;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -143,14 +144,16 @@ export async function POST(req: Request) {
     const title = isNonEmptyString(body?.title) ? String(body.title).trim() : "";
     const city = isNonEmptyString(body?.city) ? String(body.city).trim() : "";
     const kind = isNonEmptyString(body?.kind) ? String(body.kind).trim() : "";
-    const billing_unit = isNonEmptyString(body?.billing_unit)
-      ? String(body.billing_unit).trim()
-      : "night";
+
+    // ✅ billing_unit: normalisation + month accepté
+    const allowedUnits = new Set<BillingUnit>(["night", "day", "week", "month"]);
+
+    const billing_unit_raw = isNonEmptyString(body?.billing_unit) ? String(body.billing_unit) : "";
+    const billing_unit = (billing_unit_raw.trim().toLowerCase() || "night") as BillingUnit;
+
     const price_cents = toInt(body?.price_cents, 0);
 
-    const cover_image_path = isNonEmptyString(body?.cover_image_path)
-      ? String(body.cover_image_path).trim()
-      : null;
+    const cover_image_path = isNonEmptyString(body?.cover_image_path) ? String(body.cover_image_path).trim() : null;
 
     if (!title) return j({ error: "Titre requis." }, 400);
     if (title.length > 120) return j({ error: "Titre trop long (max 120 caractères)." }, 400);
@@ -161,9 +164,10 @@ export async function POST(req: Request) {
     if (!kind) return j({ error: "Type requis." }, 400);
     if (kind.length > 60) return j({ error: "Type trop long." }, 400);
 
-    if (!["night", "day", "week"].includes(billing_unit)) {
-      return j({ error: "billing_unit invalide (night/day/week)." }, 400);
+    if (!allowedUnits.has(billing_unit)) {
+      return j({ error: "billing_unit invalide (night/day/week/month)." }, 400);
     }
+
     if (!Number.isFinite(price_cents) || price_cents <= 0) {
       return j({ error: "price_cents invalide (doit être > 0)." }, 400);
     }
@@ -297,7 +301,6 @@ export async function POST(req: Request) {
         }
       } catch {
         // ✅ On ne renvoie plus le message Resend brut (anglais) à l'UI.
-        // On affiche un message français propre.
         emailWarning = "Email non envoyé (mode test). L’envoi sera actif après validation du domaine.";
 
         if (isDev) {

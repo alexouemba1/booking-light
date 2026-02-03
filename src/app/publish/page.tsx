@@ -10,7 +10,8 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 Mo
 const BUCKET = "listing-images";
 const STORAGE_PREFIX = "listings"; // chemin: listings/<listingId>/<n>-<filename>
 
-type BillingUnit = "night" | "day" | "week";
+// ✅ AJOUT: month
+type BillingUnit = "night" | "day" | "week" | "month";
 
 type CreateListingResponse = {
   listing?: { id?: string | number | null } | null;
@@ -58,7 +59,8 @@ function validateFiles(arr: File[]) {
 function unitLabel(unit: BillingUnit) {
   if (unit === "night") return "nuit";
   if (unit === "day") return "jour";
-  return "semaine";
+  if (unit === "week") return "semaine";
+  return "mois"; // ✅ AJOUT
 }
 
 function getErrorMessage(e: unknown) {
@@ -86,7 +88,10 @@ export default function PublishPage() {
   const [title, setTitle] = useState("");
   const [city, setCity] = useState("");
   const [kind, setKind] = useState("Appartement");
+
+  // ✅ tu peux garder "week" par défaut, ou mettre "month" si tu veux
   const [billingUnit, setBillingUnit] = useState<BillingUnit>("week");
+
   const [priceEuros, setPriceEuros] = useState("");
 
   // Created listing
@@ -175,7 +180,6 @@ export default function PublishPage() {
     setCreating(true);
 
     try {
-      // ✅ Token Supabase (pour appeler l’API serveur)
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? null;
       if (!token) {
@@ -189,10 +193,9 @@ export default function PublishPage() {
         city: city.trim(),
         kind: kind.trim(),
         price_cents: cents,
-        billing_unit: billingUnit,
+        billing_unit: billingUnit, // ✅ month possible
       };
 
-      // ✅ Appel API (au lieu de supabase.from('listings').insert côté client)
       const res = await fetch("/api/host/listings", {
         method: "POST",
         headers: {
@@ -228,10 +231,9 @@ export default function PublishPage() {
       setTitle("");
       setCity("");
       setKind("Appartement");
-      setBillingUnit("week");
+      setBillingUnit("week"); // ✅ tu peux mettre "month" si tu veux par défaut
       setPriceEuros("");
 
-      // ✅ Message succès + info email si dispo
       const emailAttempted = !!json?.email?.attempted;
       const emailWarning = json?.email?.warning ? String(json.email.warning) : null;
 
@@ -327,7 +329,6 @@ export default function PublishPage() {
       setSuccessMsg("Upload terminé. Direction Mes annonces.");
       setFiles([]);
 
-      // ✅ Une fois l’upload fini, on termine le flux: on supprime l’ID sauvegardé
       setListingId(null);
       if (typeof window !== "undefined") window.localStorage.removeItem("publish:lastListingId");
 
@@ -345,18 +346,16 @@ export default function PublishPage() {
     setFiles([]);
     setListingId(null);
 
-    // ✅ Reset champs étape 1
     setTitle("");
     setCity("");
     setKind("Appartement");
-    setBillingUnit("week");
+    setBillingUnit("week"); // ✅ reset
     setPriceEuros("");
 
     if (typeof window !== "undefined") window.localStorage.removeItem("publish:lastListingId");
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  // Drag & drop handlers
   function onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     if (!listingId || uploading) return;
@@ -621,6 +620,7 @@ export default function PublishPage() {
                     <option value="night">Nuit</option>
                     <option value="day">Jour</option>
                     <option value="week">Semaine</option>
+                    <option value="month">Mois</option> {/* ✅ AJOUT */}
                   </select>
                 </div>
               </div>
@@ -666,7 +666,6 @@ export default function PublishPage() {
           </div>
 
           <div style={panelBody}>
-            {/* Picker */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <input
                 ref={inputRef}
@@ -691,7 +690,6 @@ export default function PublishPage() {
               </div>
             </div>
 
-            {/* Drop zone */}
             <div
               onDrop={onDrop}
               onDragOver={onDragOver}
@@ -719,7 +717,6 @@ export default function PublishPage() {
               )}
             </div>
 
-            {/* Previews */}
             {files.length > 0 && (
               <>
                 <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>
@@ -782,7 +779,6 @@ export default function PublishPage() {
               </>
             )}
 
-            {/* Upload + progress */}
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <button onClick={uploadImages} disabled={!canUpload} style={primaryBtn(!canUpload)}>
                 {uploading ? "Upload en cours…" : "Uploader les images"}
