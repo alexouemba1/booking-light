@@ -63,10 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="fr">
       <head>
         {/* Google Analytics */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M"
-          strategy="afterInteractive"
-        />
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M" strategy="afterInteractive" />
         <Script id="ga4" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
@@ -150,16 +147,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </a>
                 </span>
 
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <a
-                    className="bl-footer-link"
-                    href="https://wa.me/33777399242"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    💬 WhatsApp : +33 7 77 39 92 42
-                  </a>
-                </span>
+               {/* ✅ Nouveau bouton WhatsApp (logo + CTA) */}
+<a
+  href="https://wa.me/33777399242"
+  target="_blank"
+  rel="noopener noreferrer"
+  title="Contacter sur WhatsApp"
+  className="bl-whatsapp-btn"
+>
+  <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <path
+      fill="#25D366"
+      d="M16 3C9.383 3 4 8.383 4 15c0 2.676.902 5.17 2.414 7.176L5 29l7.01-1.395A11.93 11.93 0 0 0 16 27c6.617 0 12-5.383 12-12S22.617 3 16 3z"
+    />
+    <path
+      fill="#fff"
+      d="M13.82 9.83c-.24-.54-.49-.56-.72-.57h-.62c-.22 0-.57.08-.87.4-.3.32-1.15 1.12-1.15 2.74 0 1.62 1.18 3.18 1.34 3.4.16.22 2.28 3.65 5.63 4.97 2.78 1.1 3.35.88 3.95.82.6-.06 1.93-.79 2.2-1.55.27-.76.27-1.42.19-1.55-.08-.13-.3-.21-.63-.38-.33-.17-1.93-.95-2.23-1.06-.3-.11-.52-.17-.74.17-.22.34-.85 1.06-1.04 1.28-.19.22-.38.25-.71.08-.33-.17-1.39-.51-2.65-1.62-.98-.87-1.64-1.94-1.83-2.27-.19-.33-.02-.51.15-.68.15-.15.33-.38.49-.57.16-.19.21-.33.32-.55.11-.22.06-.42-.02-.59-.08-.17-.7-1.72-.96-2.27z"
+    />
+  </svg>
+
+  <span>WhatsApp</span>
+</a>
+
               </div>
             </div>
           </div>

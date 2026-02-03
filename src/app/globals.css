@@ -631,3 +631,24 @@ a{ color: inherit; }
     scroll-behavior: auto !important;
   }
 }
+
+.bl-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: white;
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.bl-whatsapp-btn:hover {
+  background: rgba(37, 211, 102, 0.12); /* vert WhatsApp soft */
+  border-color: rgba(37, 211, 102, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
