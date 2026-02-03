@@ -6,9 +6,19 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 const MAX_FILES = 10;
-const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 Mo
+
+// ✅ On accepte des fichiers plus gros en entrée (photos téléphone), car on compresse avant upload.
+const MAX_INPUT_BYTES = 15 * 1024 * 1024; // 15 Mo (entrée)
+const MAX_OUTPUT_BYTES = 5 * 1024 * 1024; // 5 Mo (après compression) — garde-fou
+
 const BUCKET = "listing-images";
 const STORAGE_PREFIX = "listings"; // chemin: listings/<listingId>/<n>-<filename>
+
+// ✅ Réglages compression (brillant mais naturel)
+const COMPRESS_MAX_DIM = 1920; // max largeur/hauteur après resize
+const COMPRESS_QUALITY = 0.82; // 0..1 (0.8–0.85 = très bon compromis)
+const OUTPUT_EXT = "webp";
+const OUTPUT_MIME = "image/webp";
 
 // ✅ AJOUT: month
 type BillingUnit = "night" | "day" | "week" | "month";
@@ -47,7 +57,8 @@ function validateFiles(arr: File[]) {
   if (arr.length > MAX_FILES) return `Max ${MAX_FILES} images. Tu en as ${arr.length}.`;
 
   for (const f of arr) {
-    if (f.size > MAX_SIZE_BYTES) return `"${f.name}" dépasse 5 Mo.`;
+    // ✅ On autorise plus gros en entrée, car on compresse avant upload.
+    if (f.size > MAX_INPUT_BYTES) return `"${f.name}" dépasse 15 Mo (trop lourd).`;
     const ext = extFromFile(f);
     if (!["jpg", "jpeg", "png", "webp"].includes(ext)) {
       return `"${f.name}" n’est pas un format autorisé (JPG/PNG/WEBP).`;
@@ -77,6 +88,81 @@ function parseJsonSafe(text: string): unknown {
   }
 }
 
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 Ko";
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} Ko`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1).replace(".", ",")} Mo`;
+}
+
+/**
+ * ✅ Compression automatique côté navigateur:
+ * - Decode image
+ * - Resize (max COMPRESS_MAX_DIM)
+ * - Export WebP (quality COMPRESS_QUALITY)
+ * - Retourne un File prêt à uploader
+ */
+async function compressImageToWebp(input: File): Promise<File> {
+  // Si ce n'est pas une image, on renvoie tel quel (normalement filtré avant)
+  if (!input.type.startsWith("image/")) return input;
+
+  // createImageBitmap est rapide et évite certains soucis de decode
+  // (note: l'orientation EXIF est généralement gérée par le navigateur, selon plateforme)
+  const bitmap = await createImageBitmap(input);
+
+  let { width, height } = bitmap;
+
+  // Calcul resize
+  const maxDim = COMPRESS_MAX_DIM;
+  if (width > maxDim || height > maxDim) {
+    const ratio = width / height;
+    if (ratio >= 1) {
+      width = maxDim;
+      height = Math.round(maxDim / ratio);
+    } else {
+      height = maxDim;
+      width = Math.round(maxDim * ratio);
+    }
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, width);
+  canvas.height = Math.max(1, height);
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return input;
+  }
+
+  // Qualité de resize (si supportée)
+  // @ts-expect-error
+  ctx.imageSmoothingEnabled = true;
+  // @ts-expect-error
+  ctx.imageSmoothingQuality = "high";
+
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (!b) reject(new Error("Compression impossible (toBlob null)."));
+        else resolve(b);
+      },
+      OUTPUT_MIME,
+      COMPRESS_QUALITY
+    );
+  });
+
+  // Nom du fichier en .webp
+  const base = sanitizeFilename(input.name.replace(/\.[^.]+$/, "")) || "image";
+  const outName = `${base}.${OUTPUT_EXT}`;
+
+  return new File([blob], outName, { type: OUTPUT_MIME, lastModified: Date.now() });
+}
+
 export default function PublishPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -101,6 +187,17 @@ export default function PublishPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadIndex, setUploadIndex] = useState(0);
+
+  // ✅ NEW: optimisation stats (mini message)
+  const [optInfo, setOptInfo] = useState<{
+    count: number;
+    beforeBytes: number;
+    afterBytes: number;
+    lastMessage: string | null;
+  }>({ count: 0, beforeBytes: 0, afterBytes: 0, lastMessage: null });
+
+  // ✅ NEW: previews (évite fuite mémoire des URL.createObjectURL)
+  const [previews, setPreviews] = useState<string[]>([]);
 
   // UI
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -155,6 +252,20 @@ export default function PublishPage() {
     if (typeof window === "undefined") return;
     if (listingId) window.localStorage.setItem("publish:lastListingId", listingId);
   }, [listingId]);
+
+  // ✅ previews URLs management
+  useEffect(() => {
+    // cleanup anciennes URLs
+    for (const u of previews) URL.revokeObjectURL(u);
+
+    const next = files.map((f) => URL.createObjectURL(f));
+    setPreviews(next);
+
+    return () => {
+      for (const u of next) URL.revokeObjectURL(u);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
 
   async function createListing() {
     setErrorMsg(null);
@@ -254,6 +365,7 @@ export default function PublishPage() {
   function addFiles(next: File[]) {
     setErrorMsg(null);
     setSuccessMsg(null);
+    setOptInfo((p) => ({ ...p, lastMessage: null }));
 
     const combined = [...files, ...next].slice(0, MAX_FILES);
     const err = validateFiles(combined);
@@ -273,12 +385,14 @@ export default function PublishPage() {
   function removeAt(idx: number) {
     setErrorMsg(null);
     setSuccessMsg(null);
+    setOptInfo((p) => ({ ...p, lastMessage: null }));
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
   function clearAllFiles() {
     setErrorMsg(null);
     setSuccessMsg(null);
+    setOptInfo({ count: 0, beforeBytes: 0, afterBytes: 0, lastMessage: null });
     setFiles([]);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -286,6 +400,7 @@ export default function PublishPage() {
   async function uploadImages() {
     setErrorMsg(null);
     setSuccessMsg(null);
+    setOptInfo((p) => ({ ...p, lastMessage: null }));
 
     if (!listingId) {
       setErrorMsg("Annonce introuvable. Crée une annonce (Étape 1).");
@@ -302,17 +417,34 @@ export default function PublishPage() {
     setUploadIndex(0);
 
     try {
+      let beforeTotal = 0;
+      let afterTotal = 0;
+
       for (let i = 0; i < files.length; i++) {
         setUploadIndex(i);
 
-        const file = files[i];
-        const ext = extFromFile(file);
-        const safeName = sanitizeFilename(file.name) || `image-${i + 1}.${ext}`;
+        const original = files[i];
+        beforeTotal += original.size;
+
+        // ✅ Compression auto (sans option)
+        const optimized = await compressImageToWebp(original);
+        afterTotal += optimized.size;
+
+        if (optimized.size > MAX_OUTPUT_BYTES) {
+          throw new Error(
+            `"${original.name}" reste trop lourde après optimisation (${formatBytes(
+              optimized.size
+            )}). Essaie une image moins grande.`
+          );
+        }
+
+        const safeNameBase = sanitizeFilename(optimized.name.replace(/\.[^.]+$/, "")) || `image-${i + 1}`;
+        const safeName = `${safeNameBase}.${OUTPUT_EXT}`;
         const path = `${STORAGE_PREFIX}/${listingId}/${String(i + 1).padStart(2, "0")}-${safeName}`;
 
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, optimized, {
           upsert: true,
-          contentType: file.type || undefined,
+          contentType: OUTPUT_MIME,
         });
         if (upErr) throw upErr;
 
@@ -325,6 +457,18 @@ export default function PublishPage() {
 
         setUploadIndex(i + 1);
       }
+
+      const msg =
+        beforeTotal > 0
+          ? `Images optimisées automatiquement : ${formatBytes(beforeTotal)} → ${formatBytes(afterTotal)}`
+          : null;
+
+      setOptInfo({
+        count: files.length,
+        beforeBytes: beforeTotal,
+        afterBytes: afterTotal,
+        lastMessage: msg,
+      });
 
       setSuccessMsg("Upload terminé. Direction Mes annonces.");
       setFiles([]);
@@ -351,6 +495,8 @@ export default function PublishPage() {
     setKind("Appartement");
     setBillingUnit("week"); // ✅ reset
     setPriceEuros("");
+
+    setOptInfo({ count: 0, beforeBytes: 0, afterBytes: 0, lastMessage: null });
 
     if (typeof window !== "undefined") window.localStorage.removeItem("publish:lastListingId");
     if (inputRef.current) inputRef.current.value = "";
@@ -539,6 +685,9 @@ export default function PublishPage() {
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
               Crée l’annonce, puis ajoute les images. La première image devient la couverture (modifiable sur la page détail).
             </div>
+            <div style={{ marginTop: 10, opacity: 0.7, fontWeight: 900, fontSize: 13 }}>
+              ✅ Images optimisées automatiquement (compression + resize) avant l’upload.
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -550,6 +699,8 @@ export default function PublishPage() {
       </section>
 
       {successMsg && <div style={alertOk}>{successMsg}</div>}
+
+      {optInfo.lastMessage && <div style={alertOk}>{optInfo.lastMessage}</div>}
 
       {errorMsg && (
         <div style={alertErr}>
@@ -658,7 +809,10 @@ export default function PublishPage() {
             <div>
               <div style={{ fontWeight: 950, fontSize: 16, letterSpacing: -0.1 }}>2) Images</div>
               <div style={{ marginTop: 4, opacity: 0.75, fontSize: 13 }}>
-                JPG/PNG/WEBP — {MAX_FILES} max — 5 Mo max par image.
+                JPG/PNG/WEBP — {MAX_FILES} max — compression auto avant upload.
+              </div>
+              <div style={{ marginTop: 6, opacity: 0.7, fontWeight: 900, fontSize: 12 }}>
+                Entrée max: 15 Mo / image · Après optimisation: max 5 Mo / image
               </div>
             </div>
 
@@ -725,7 +879,7 @@ export default function PublishPage() {
 
                 <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12 }}>
                   {files.map((f, idx) => {
-                    const url = URL.createObjectURL(f);
+                    const url = previews[idx];
                     const isCover = idx === 0;
 
                     return (
@@ -752,13 +906,18 @@ export default function PublishPage() {
                         <img src={url} alt="" style={{ width: "100%", height: 140, objectFit: "cover" }} />
 
                         <div style={{ padding: 10, display: "flex", gap: 8, alignItems: "center" }}>
-                          <div style={{ fontWeight: 950, fontSize: 12 }}>{isCover ? "Couverture" : `Image ${idx + 1}`}</div>
+                          <div style={{ fontWeight: 950, fontSize: 12 }}>
+                            {isCover ? "Couverture" : `Image ${idx + 1}`}
+                          </div>
+
+                          <div style={{ marginLeft: "auto", opacity: 0.7, fontWeight: 900, fontSize: 12 }}>
+                            {formatBytes(f.size)}
+                          </div>
 
                           <button
                             onClick={() => removeAt(idx)}
                             disabled={uploading}
                             style={{
-                              marginLeft: "auto",
                               border: "1px solid #e5e5e5",
                               background: uploading ? "#f3f3f3" : "white",
                               borderRadius: 12,
@@ -781,7 +940,7 @@ export default function PublishPage() {
 
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <button onClick={uploadImages} disabled={!canUpload} style={primaryBtn(!canUpload)}>
-                {uploading ? "Upload en cours…" : "Uploader les images"}
+                {uploading ? "Optimisation + Upload…" : "Uploader les images"}
               </button>
 
               {uploading && files.length > 0 && (
