@@ -83,13 +83,8 @@ export default function TopbarClient() {
       const raw = await res.text();
       const parsed = parseJsonSafe(raw);
 
-      if (!parsed || typeof parsed !== "object") {
-        return;
-      }
-
-      if (!res.ok) {
-        return;
-      }
+      if (!parsed || typeof parsed !== "object") return;
+      if (!res.ok) return;
 
       const json = parsed as InboxApiResponse;
       const items = (json.items || []) as InboxItem[];
@@ -208,8 +203,6 @@ export default function TopbarClient() {
 
   return (
     <>
-      
-
       <header className="bl-topbar">
         <div className="bl-topbar-inner">
           {/* LOGO */}
@@ -239,6 +232,9 @@ export default function TopbarClient() {
             <Link className="bl-pill" href="/">
               Accueil
             </Link>
+
+           
+
             <Link className="bl-pill" href="/publish">
               Publier
             </Link>
@@ -308,6 +304,12 @@ export default function TopbarClient() {
               <Link className="bl-pill" href="/">
                 Accueil
               </Link>
+
+              {/* ✅ NEW: Bons plans */}
+              <Link className="bl-pill bl-pill-hover" href="/bons-plans" title="Bons plans (liens utiles)">
+                Bons plans
+              </Link>
+
               <Link className="bl-pill" href="/publish">
                 Publier
               </Link>
@@ -343,7 +345,7 @@ export default function TopbarClient() {
           </div>
         )}
 
-        {/* Styles inline simples pour gérer desktop/mobile sans toucher à ton CSS existant */}
+        {/* Styles inline: desktop/mobile + hover */}
         <style jsx global>{`
           .bl-topbar-mobile {
             display: none;
@@ -351,6 +353,18 @@ export default function TopbarClient() {
           .bl-nav-desktop {
             display: flex;
           }
+
+          /* ✅ Hover “punchy” mais discret */
+          .bl-pill-hover {
+            transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+          }
+          .bl-pill-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+            border-color: rgba(11, 18, 32, 0.18);
+            background: rgba(0, 0, 0, 0.02);
+          }
+
           @media (max-width: 720px) {
             .bl-topbar-inner {
               padding: 12px 16px;

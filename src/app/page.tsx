@@ -234,7 +234,22 @@ export default function HomePage() {
                 Mes annonces
               </Link>
             </div>
-
+<div
+  style={{
+    marginTop: 12,
+    display: "grid",
+    gap: 6,
+    padding: 12,
+    borderRadius: 14,
+    border: "1px solid rgba(11,18,32,.12)",
+    background: "rgba(0,0,0,0.02)",
+    fontWeight: 800,
+  }}
+>
+  <div>✔️ 0 € pour publier une annonce</div>
+  <div>✔️ Commission affichée avant réservation</div>
+  <div>✔️ Plateforme française, support local</div>
+</div>
             
           </form>
 

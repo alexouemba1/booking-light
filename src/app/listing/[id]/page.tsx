@@ -275,8 +275,19 @@ function StarsInline({ value, count }: { value: number; count: number }) {
 ======================= */
 
 export default function ListingPage() {
-  const params = useParams();
-  const id = params.id as string;
+  // ✅ GUARD id (anti page blanche)
+  const params = useParams() as { id?: string | string[] } | null;
+
+  const id =
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : "";
+
+  if (!id) {
+    return <main className="bl-container">Annonce introuvable.</main>;
+  }
 
   const searchParams = useSearchParams();
   const wantsReview = searchParams.get("review") === "1";
@@ -550,7 +561,11 @@ export default function ListingPage() {
     const uid = session.session?.user?.id ?? null;
     if (!uid) return;
 
-    const { data, error } = await sb.from("reviews").select("id,rating,comment").eq("booking_id", String(bookingIdFromUrl)).maybeSingle();
+    const { data, error } = await sb
+      .from("reviews")
+      .select("id,rating,comment")
+      .eq("booking_id", String(bookingIdFromUrl))
+      .maybeSingle();
     if (error) return;
 
     if (data?.id) {
@@ -979,9 +994,7 @@ export default function ListingPage() {
             <section style={{ marginTop: 18 }}>
               <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                 <span>Galerie</span>
-                {isOwner && (
-                  <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>Astuce : clique “Définir comme couverture”.</span>
-                )}
+                {isOwner && <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>Astuce : clique “Définir comme couverture”.</span>}
               </div>
 
               <div className="bl-gallery" style={{ marginTop: 10 }}>
@@ -1062,11 +1075,7 @@ export default function ListingPage() {
               </div>
             </div>
 
-            {totalPreview !== null && (
-              <div className="bl-total" style={{ marginTop: 8 }}>
-                Total estimé : {euros(totalPreview)}
-              </div>
-            )}
+            {totalPreview !== null && <div className="bl-total" style={{ marginTop: 8 }}>Total estimé : {euros(totalPreview)}</div>}
 
             {chosenDatesBlockReason && (
               <div className="bl-alert" style={{ marginTop: 10 }}>
@@ -1079,21 +1088,11 @@ export default function ListingPage() {
               disabled={bookingLoading || !canBook}
               className={bookingLoading || !canBook ? "bl-btn bl-btn-disabled" : "bl-btn bl-btn-primary"}
               title={
-                isOwner
-                  ? "Tu ne peux pas réserver ta propre annonce"
-                  : chosenDatesBlockReason
-                  ? chosenDatesBlockReason
-                  : "Créer une réservation"
+                isOwner ? "Tu ne peux pas réserver ta propre annonce" : chosenDatesBlockReason ? chosenDatesBlockReason : "Créer une réservation"
               }
               style={{ width: "100%", marginTop: 10, fontWeight: 900 }}
             >
-              {bookingLoading
-                ? "Réservation…"
-                : isOwner
-                ? "Réservation impossible (propriétaire)"
-                : !canBook
-                ? "Dates indisponibles"
-                : "Réserver"}
+              {bookingLoading ? "Réservation…" : isOwner ? "Réservation impossible (propriétaire)" : !canBook ? "Dates indisponibles" : "Réserver"}
             </button>
 
             {createdBookingId && (
@@ -1171,12 +1170,7 @@ export default function ListingPage() {
         <div className="bl-panel-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <span>Avis</span>
 
-          <button
-            className="bl-btn"
-            style={{ marginTop: 0, height: 38, fontWeight: 900 }}
-            onClick={loadReviews}
-            disabled={reviewsLoading}
-          >
+          <button className="bl-btn" style={{ marginTop: 0, height: 38, fontWeight: 900 }} onClick={loadReviews} disabled={reviewsLoading}>
             {reviewsLoading ? "Chargement…" : "Rafraîchir"}
           </button>
         </div>
@@ -1194,9 +1188,7 @@ export default function ListingPage() {
             }}
           >
             <StarsInline value={ratingAvg} count={ratingCount} />
-            <span style={{ fontWeight: 900, opacity: 0.75 }}>
-              {ratingCount === 0 ? "Aucun avis" : `${ratingAvg.toFixed(1)} / 5`}
-            </span>
+            <span style={{ fontWeight: 900, opacity: 0.75 }}>{ratingCount === 0 ? "Aucun avis" : `${ratingAvg.toFixed(1)} / 5`}</span>
           </div>
 
           {reviewMsg && <div style={{ fontSize: 13, fontWeight: 900, opacity: 0.75 }}>{reviewMsg}</div>}
@@ -1281,11 +1273,7 @@ export default function ListingPage() {
                   {r.booking_id ? <Badge tone="neutral">avis vérifié</Badge> : <Badge tone="neutral">avis</Badge>}
                 </div>
 
-                {r.comment && (
-                  <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85, whiteSpace: "pre-wrap" }}>
-                    {r.comment}
-                  </div>
-                )}
+                {r.comment && <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85, whiteSpace: "pre-wrap" }}>{r.comment}</div>}
               </div>
             ))
           )}
