@@ -305,10 +305,7 @@ export default function TopbarClient() {
                 Accueil
               </Link>
 
-              {/* ✅ NEW: Bons plans */}
-              <Link className="bl-pill bl-pill-hover" href="/bons-plans" title="Bons plans (liens utiles)">
-                Bons plans
-              </Link>
+            
 
               <Link className="bl-pill" href="/publish">
                 Publier
