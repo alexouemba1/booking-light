@@ -1,30 +1,52 @@
-import { MetadataRoute } from "next";
+// FILE: src/app/sitemap.ts
+import type { MetadataRoute } from "next";
+
+const SITE_URL = "https://lightbooker.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const now = new Date();
+
   return [
+    // 🏠 Home — page la plus importante
     {
-      url: "https://lightbooker.com",
-      lastModified: new Date(),
+      url: `${SITE_URL}/`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 1.0,
+    },
+
+    // 📢 Pages clés
+    {
+      url: `${SITE_URL}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.4,
     },
     {
-      url: "https://lightbooker.com/about",
-      lastModified: new Date(),
+      url: `${SITE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+
+    // 📜 Légal
+    {
+      url: `${SITE_URL}/cgv`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
     },
     {
-      url: "https://lightbooker.com/contact",
-      lastModified: new Date(),
+      url: `${SITE_URL}/cgu`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
     },
     {
-      url: "https://lightbooker.com/cgv",
-      lastModified: new Date(),
-    },
-    {
-      url: "https://lightbooker.com/cgu",
-      lastModified: new Date(),
-    },
-    {
-      url: "https://lightbooker.com/privacy",
-      lastModified: new Date(),
+      url: `${SITE_URL}/privacy`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
     },
   ];
 }
