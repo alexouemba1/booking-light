@@ -576,7 +576,7 @@ export async function POST(req: Request) {
         eventId: event.id,
         patch: { status: "error", error: "Booking introuvable (bookingId introuvable)." },
       });
-      return j({ error: "Booking introuvable (bookingId introuvable)." }, 400);
+      return j({ ok: true }, 200);
     }
 
     const { data: current, error: curErr } = await admin
@@ -591,7 +591,7 @@ export async function POST(req: Request) {
         eventId: event.id,
         patch: { status: "error", error: "Booking introuvable (ou non lisible).", booking_id: bookingId },
       });
-      return j({ error: "Booking introuvable (ou non lisible)." }, 404);
+      return j({ ok: true }, 200);
     }
 
     const payLower = asString((current as any).payment_status).toLowerCase();
@@ -628,7 +628,7 @@ export async function POST(req: Request) {
           eventId: event.id,
           patch: { status: "error", error: "stripe_checkout_session_id mismatch", booking_id: bookingId },
         });
-        return j({ error: "Session mismatch" }, 400);
+        return j({ ok: true }, 200);
       }
     }
 
@@ -683,7 +683,7 @@ export async function POST(req: Request) {
         eventId: event.id,
         patch: { status: "error", error: `Update failed: ${upErr?.message ?? "?"}`, booking_id: bookingId },
       });
-      return j({ error: `Update failed: ${upErr?.message ?? "unknown"}` }, 500);
+      return j({ ok: true }, 200);
     }
 
     // auto-message + emails
@@ -714,6 +714,9 @@ export async function POST(req: Request) {
     try {
       if (event?.id) await markStripeEventDone({ admin, eventId: event.id, patch: { status: "error", error: e?.message ?? "Erreur webhook." } });
     } catch {}
-    return j({ error: e?.message ?? "Erreur webhook." }, 500);
+    return j({ ok: true }, 200);
   }
+}
+export async function GET() {
+  return NextResponse.json({ ok: true, hint: "Stripe webhooks use POST" }, { status: 200 });
 }
