@@ -99,7 +99,41 @@ export default async function CityPage({ params }: { params: { city: string } })
     selon les disponibilités des propriétaires.
   </p>
 </section>
-
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: `Peut-on réserver un logement à ${cityName} pour une seule nuit ?`,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `Oui, certains logements à ${cityName} sont disponibles à la nuit selon les disponibilités des propriétaires.`,
+          },
+        },
+        {
+          "@type": "Question",
+          name: `Le paiement est-il sécurisé pour une location à ${cityName} ?`,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `Oui, les réservations à ${cityName} sont effectuées avec un paiement sécurisé en ligne.`,
+          },
+        },
+        {
+          "@type": "Question",
+          name: `Quels types de logements sont disponibles à ${cityName} ?`,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `Studios, appartements et maisons peuvent être proposés à ${cityName} selon les annonces publiées.`,
+          },
+        },
+      ],
+    }),
+  }}
+/>
 {items.length === 0 && (
       {items.length === 0 && (
         <p style={{ marginTop: 12 }}>Aucune annonce pour le moment dans cette ville.</p>
