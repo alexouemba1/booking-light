@@ -2,6 +2,7 @@
 import Link from "next/link";
 
 const CITIES = [
+  // 🇫🇷 Métropole
   { name: "Paris", slug: "paris" },
   { name: "Lyon", slug: "lyon" },
   { name: "Marseille", slug: "marseille" },
@@ -12,6 +13,11 @@ const CITIES = [
   { name: "Nice", slug: "nice" },
   { name: "Montpellier", slug: "montpellier" },
   { name: "Strasbourg", slug: "strasbourg" },
+
+  // 🌴 Outre-mer
+  { name: "Guadeloupe", slug: "guadeloupe" },
+  { name: "Martinique", slug: "martinique" },
+  { name: "Guyane", slug: "guyane" },
 ];
 
 export default function VillesPage() {

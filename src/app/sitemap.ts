@@ -4,6 +4,7 @@ import type { MetadataRoute } from "next";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
 
 const CITY_SLUGS = [
+  // 🇫🇷 Métropole
   "paris",
   "lyon",
   "marseille",
@@ -14,6 +15,11 @@ const CITY_SLUGS = [
   "nice",
   "montpellier",
   "strasbourg",
+
+  // 🌴 Outre-mer
+  "guadeloupe",
+  "martinique",
+  "guyane",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
