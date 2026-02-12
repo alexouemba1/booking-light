@@ -170,7 +170,8 @@ export default function HomePage() {
     <main className="bl-container">
       <div className="bl-hero">
         <div className="bl-hero-title">
-          <h1 className="bl-h1">Booking-Light</h1>
+          <h1 className="bl-h1">Location d&apos;appartements et maisons en France – Réservation sécurisée</h1>
+
           <div className="bl-hero-meta">
             {items.length} annonce{items.length > 1 ? "s" : ""} · {withPhoto} avec photo
           </div>
@@ -193,7 +194,12 @@ export default function HomePage() {
             >
               <div>
                 <label className="bl-label">Ville</label>
-                <input className="bl-input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex : Paris" />
+                <input
+                  className="bl-input"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Ex : Paris"
+                />
               </div>
 
               <div>
@@ -234,23 +240,23 @@ export default function HomePage() {
                 Mes annonces
               </Link>
             </div>
-<div
-  style={{
-    marginTop: 12,
-    display: "grid",
-    gap: 6,
-    padding: 12,
-    borderRadius: 14,
-    border: "1px solid rgba(11,18,32,.12)",
-    background: "rgba(0,0,0,0.02)",
-    fontWeight: 800,
-  }}
->
-  <div>✔️ 0 € pour publier une annonce</div>
-  <div>✔️ Commission affichée avant réservation</div>
-  <div>✔️ Plateforme française, support local</div>
-</div>
-            
+
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gap: 6,
+                padding: 12,
+                borderRadius: 14,
+                border: "1px solid rgba(11,18,32,.12)",
+                background: "rgba(0,0,0,0.02)",
+                fontWeight: 800,
+              }}
+            >
+              <div>✔️ 0 € pour publier une annonce</div>
+              <div>✔️ Commission affichée avant réservation</div>
+              <div>✔️ Plateforme française, support local</div>
+            </div>
           </form>
 
           <div
@@ -274,12 +280,40 @@ export default function HomePage() {
               </div>
             )}
 
-            <iframe title="Carte" src={mapSrc} style={{ width: "100%", height: 260, border: 0, display: "block" }} loading="lazy" />
+            <iframe
+              title="Carte"
+              src={mapSrc}
+              style={{ width: "100%", height: 260, border: 0, display: "block" }}
+              loading="lazy"
+            />
           </div>
         </div>
       </div>
 
-      
+      {/* ✅ Bloc SEO (placé juste après le HERO) */}
+      <section style={{ marginTop: 40 }}>
+        <h2 style={{ fontWeight: 900 }}>Louer un logement en toute simplicité</h2>
+
+        <p style={{ marginTop: 12, opacity: 0.9 }}>
+          Booking-Light est une plateforme de location entre particuliers. Trouvez un appartement, une maison ou un studio
+          pour une nuit, une semaine ou un mois. Réservation en ligne, paiement sécurisé, messagerie interne et commission
+          transparente.
+        </p>
+
+        <p style={{ marginTop: 12, opacity: 0.9 }}>
+          Publiez gratuitement votre annonce et recevez des réservations. Locations populaires : Paris, Marseille,
+          Toulouse, Martinique et Guyane.
+        </p>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link className="bl-btn bl-btn-primary" href="/publish">
+            Publier une annonce
+          </Link>
+          <Link className="bl-btn" href="/villes">
+            Voir toutes les villes
+          </Link>
+        </div>
+      </section>
 
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
@@ -344,7 +378,7 @@ export default function HomePage() {
             })}
           </div>
         )}
-           </section>
+      </section>
 
       {/* 🔥 Bloc SEO maillage interne */}
       <section style={{ marginTop: 40 }}>
