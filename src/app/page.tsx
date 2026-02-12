@@ -344,6 +344,19 @@ export default function HomePage() {
             })}
           </div>
         )}
+           </section>
+
+      {/* 🔥 Bloc SEO maillage interne */}
+      <section style={{ marginTop: 40 }}>
+        <h2 style={{ fontWeight: 900 }}>Locations populaires</h2>
+
+        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+          <Link href="/location-paris">Location à Paris</Link>
+          <Link href="/location-marseille">Location à Marseille</Link>
+          <Link href="/location-toulouse">Location à Toulouse</Link>
+          <Link href="/location-martinique">Location en Martinique</Link>
+          <Link href="/location-guyane">Location en Guyane</Link>
+        </div>
       </section>
     </main>
   );
