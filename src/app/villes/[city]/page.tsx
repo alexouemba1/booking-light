@@ -1,6 +1,9 @@
 // FILE: src/app/villes/[city]/page.tsx
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Metadata } from "next";
+import { useParams } from "next/navigation";
 import { publicListingImageUrl } from "@/lib/storage";
 
 type ListingHome = {
@@ -28,66 +31,62 @@ function titleCaseFromSlug(slug: string) {
     .join(" ");
 }
 
-// ✅ SEO: title/description dynamiques
-export async function generateMetadata({ params }: { params: { city: string } }): Promise<Metadata> {
-  const cityName = titleCaseFromSlug(params.city);
+export default function CityPage() {
+  const params = useParams() as { city?: string | string[] } | null;
 
-  return {
-    title: `Location à ${cityName} | LightBooker`,
-    description: `Découvrez des logements à ${cityName} (nuit, semaine ou mois). Réservation sécurisée et paiement en ligne.`,
-  };
-}
+  const citySlug =
+    typeof params?.city === "string"
+      ? params.city
+      : Array.isArray(params?.city)
+      ? params.city[0]
+      : "";
 
-async function getListings(cityName: string): Promise<ListingHome[]> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
+  const cityName = useMemo(() => titleCaseFromSlug(citySlug || ""), [citySlug]);
 
-  const url = new URL("/api/search", siteUrl);
-  url.searchParams.set("city", cityName);
-  url.searchParams.set("guests", "1");
+  const [items, setItems] = useState<ListingHome[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  if (!res.editable) return []; // sécurité
-  if (!res.ok) return [];
+  useEffect(() => {
+    let alive = true;
 
-  const json = await res.json();
-  return json?.items ?? [];
-}
+    async function load() {
+      if (!citySlug) {
+        setLoading(false);
+        setItems([]);
+        return;
+      }
 
-export default async function CityPage({ params }: { params: { city: string } }) {
-  const citySlug = params.city || "";
-  const cityName = titleCaseFromSlug(citySlug);
-  const items = await getListings(cityName);
+      setLoading(true);
+      setErrorMsg(null);
 
-  const faqLdJson = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: `Peut-on réserver un logement à ${cityName} pour une seule nuit ?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `Oui, certains logements à ${cityName} sont disponibles à la nuit selon les disponibilités des propriétaires.`,
-        },
-      },
-      {
-        "@type": "Question",
-        name: `Le paiement est-il sécurisé pour une location à ${cityName} ?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `Oui, les réservations à ${cityName} sont effectuées avec un paiement sécurisé en ligne.`,
-        },
-      },
-      {
-        "@type": "Question",
-        name: `Quels types de logements sont disponibles à ${cityName} ?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `Studios, appartements et maisons peuvent être proposés à ${cityName} selon les annonces publiées.`,
-        },
-      },
-    ],
-  };
+      try {
+        const sp = new URLSearchParams();
+        sp.set("city", cityName);
+        sp.set("guests", "1");
+
+        const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
+        const json: any = await res.json().catch(() => null);
+
+        if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
+
+        if (!alive) return;
+        setItems(json?.items ?? []);
+      } catch (e: any) {
+        if (!alive) return;
+        setErrorMsg(e?.message ?? "Erreur");
+        setItems([]);
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [citySlug, cityName]);
 
   return (
     <main className="bl-container">
@@ -101,45 +100,30 @@ export default async function CityPage({ params }: { params: { city: string } })
       </div>
 
       <h1 className="bl-h1" style={{ marginTop: 12 }}>
-        Location à {cityName || "—"}
+        Annonces à {cityName || "—"}
       </h1>
 
-      {/* 🔥 Texte SEO */}
+      {/* Petit texte SEO safe (pas de serveur, pas de JSON-LD ici) */}
       <p style={{ marginTop: 10, opacity: 0.85, fontWeight: 650 }}>
-        Trouvez un logement à {cityName} pour une nuit, une semaine ou un mois. Studios, appartements et maisons.
-        Réservation sécurisée et paiement en ligne.
+        Trouvez un logement à {cityName || "cette ville"} pour une nuit, une semaine ou un mois. Réservation en ligne et paiement sécurisé.
       </p>
 
-      {/* ✅ Bloc SEO enrichi */}
-      <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontWeight: 900 }}>Pourquoi louer à {cityName} ?</h2>
-        <p style={{ marginTop: 8, opacity: 0.9 }}>
-          {cityName} est une destination idéale pour un séjour court ou long. Réservez facilement un logement pour une
-          nuit, une semaine ou un mois, avec paiement sécurisé et des informations claires avant validation.
-        </p>
+      {loading && <p>Chargement…</p>}
 
-        <h3 style={{ marginTop: 16, fontWeight: 800 }}>Types de logements disponibles</h3>
-        <p style={{ opacity: 0.9 }}>
-          Studios, appartements, maisons et locations saisonnières sont proposés selon les annonces publiées par les
-          propriétaires.
-        </p>
-      </section>
+      {errorMsg && (
+        <div className="bl-alert bl-alert-error">
+          <strong>Erreur :</strong> {errorMsg}
+        </div>
+      )}
 
-      {/* ✅ FAQ schema.org (invisible mais utile SEO) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLdJson) }}
-      />
-
-      {/* ✅ Résultats */}
-      {items.length === 0 && (
-        <p style={{ marginTop: 12, opacity: 0.85, fontWeight: 700 }}>
+      {!loading && !errorMsg && items.length === 0 && (
+        <p style={{ opacity: 0.85, fontWeight: 700 }}>
           Aucune annonce pour le moment dans cette ville.
         </p>
       )}
 
-      {items.length > 0 && (
-        <div className="bl-grid" style={{ marginTop: 14 }}>
+      {!loading && !errorMsg && items.length > 0 && (
+        <div className="bl-grid" style={{ marginTop: 12 }}>
           {items.map((l) => {
             const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
             const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
@@ -168,8 +152,8 @@ export default async function CityPage({ params }: { params: { city: string } })
                         borderRadius: 999,
                         fontWeight: 800,
                         fontSize: 13,
-                        border: "1px solid rgba(11, 18, 32, .12)",
-                        background: "rgba(47, 107, 255, .10)",
+                        border: "1px solid rgba(11,18,32,.12)",
+                        background: "rgba(47,107,255,.10)",
                       }}
                       title="Prix"
                     >
