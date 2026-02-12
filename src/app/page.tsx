@@ -314,7 +314,29 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+{/* 🔎 Bloc SEO national */}
+<section style={{ marginTop: 40, maxWidth: 900 }}>
+  <h2 style={{ fontWeight: 900 }}>
+    Location d’appartements et maisons partout en France
+  </h2>
 
+  <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+    Booking-Light est une plateforme française de location d’appartements et de maisons en courte et moyenne durée.
+    Que vous recherchiez une location à Paris, Marseille, Toulouse, en Martinique ou en Guyane,
+    vous pouvez réserver en ligne avec paiement sécurisé et messagerie intégrée.
+  </p>
+
+  <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+    Les propriétaires publient gratuitement leurs annonces et les voyageurs bénéficient
+    d’une réservation simple, transparente et sécurisée. Chaque annonce affiche clairement
+    le prix par nuit, semaine ou mois, ainsi que les informations essentielles avant validation.
+  </p>
+
+  <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+    Que ce soit pour un séjour touristique, un déplacement professionnel ou une location longue durée,
+    Booking-Light facilite la mise en relation partout en France métropolitaine et outre-mer.
+  </p>
+</section>
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
 
