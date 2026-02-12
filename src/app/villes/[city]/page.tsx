@@ -73,7 +73,34 @@ export default async function CityPage({ params }: { params: { city: string } })
         Trouvez votre logement idéal à {cityName}. Studios, appartements ou maisons disponibles pour une nuit,
         une semaine ou un mois. Réservation sécurisée et paiement en ligne.
       </p>
+<p style={{ marginTop: 10, opacity: 0.85, fontWeight: 650 }}>
+  Trouvez un logement à {cityName} pour une nuit, une semaine ou un mois. Studios, appartements et maisons.
+  Réservation sécurisée et paiement en ligne.
+</p>
 
+{/* 👉 AJOUTER ICI */}
+<section style={{ marginTop: 24 }}>
+  <h2 style={{ fontWeight: 900 }}>
+    Pourquoi louer à {cityName} ?
+  </h2>
+
+  <p style={{ marginTop: 8 }}>
+    {cityName} est une destination idéale pour les séjours courts ou longs.
+    Réservez facilement un logement pour une nuit, une semaine ou un mois
+    avec paiement sécurisé.
+  </p>
+
+  <h3 style={{ marginTop: 16, fontWeight: 800 }}>
+    Types de logements disponibles
+  </h3>
+
+  <p>
+    Studios, appartements, maisons et locations saisonnières sont proposés
+    selon les disponibilités des propriétaires.
+  </p>
+</section>
+
+{items.length === 0 && (
       {items.length === 0 && (
         <p style={{ marginTop: 12 }}>Aucune annonce pour le moment dans cette ville.</p>
       )}
