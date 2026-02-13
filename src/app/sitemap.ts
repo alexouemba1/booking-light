@@ -22,6 +22,22 @@ const CITY_SLUGS = [
   "guyane",
 ];
 
+const SEO_ROUTES = [
+  // ✅ Pages SEO principales
+  "/location-paris",
+  "/location-marseille",
+  "/location-toulouse",
+  "/location-guyane",
+  "/location-martinique",
+
+  // ✅ Cluster Paris (trafic)
+  "/location-appartement-paris",
+  "/location-courte-duree-paris",
+  "/location-meublee-paris",
+  "/location-weekend-paris",
+  "/location-studio-paris",
+];
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
@@ -31,13 +47,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // ✅ Page index "villes"
     { url: `${SITE_URL}/villes`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
 
-    // ✅ Pages SEO "trafic" (à créer dans src/app/...)
-    { url: `${SITE_URL}/location-paris`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${SITE_URL}/location-marseille`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${SITE_URL}/location-toulouse`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${SITE_URL}/location-guyane`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${SITE_URL}/location-martinique`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    // ✅ Pages SEO
+    ...SEO_ROUTES.map((path) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: path === "/location-paris" ? 0.9 : 0.8,
+    })),
 
+    // Pages statiques
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
 

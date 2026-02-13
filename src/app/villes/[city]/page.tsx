@@ -66,7 +66,7 @@ export default function CityPage() {
         sp.set("guests", "1");
 
         const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
-        const json: any = await res.json().catch(() => null);
+        const json: any = await res.json();
 
         if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
 
@@ -103,11 +103,6 @@ export default function CityPage() {
         Annonces à {cityName || "—"}
       </h1>
 
-      {/* Petit texte SEO safe (pas de serveur, pas de JSON-LD ici) */}
-      <p style={{ marginTop: 10, opacity: 0.85, fontWeight: 650 }}>
-        Trouvez un logement à {cityName || "cette ville"} pour une nuit, une semaine ou un mois. Réservation en ligne et paiement sécurisé.
-      </p>
-
       {loading && <p>Chargement…</p>}
 
       {errorMsg && (
@@ -117,9 +112,7 @@ export default function CityPage() {
       )}
 
       {!loading && !errorMsg && items.length === 0 && (
-        <p style={{ opacity: 0.85, fontWeight: 700 }}>
-          Aucune annonce pour le moment dans cette ville.
-        </p>
+        <p style={{ opacity: 0.85, fontWeight: 700 }}>Aucune annonce pour le moment dans cette ville.</p>
       )}
 
       {!loading && !errorMsg && items.length > 0 && (
