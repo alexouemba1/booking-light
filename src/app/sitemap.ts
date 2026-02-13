@@ -1,11 +1,12 @@
 // FILE: src/app/sitemap.ts
 import type { MetadataRoute } from "next";
 
-const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
-const SITE_URL = RAW_SITE_URL.replace(/\/+$/, ""); // enlève les "/" à la fin
+export const revalidate = 0;
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
 
 const CITY_SLUGS = [
-  // 🇫🇷 Métropole
   "paris",
   "lyon",
   "marseille",
@@ -16,28 +17,24 @@ const CITY_SLUGS = [
   "nice",
   "montpellier",
   "strasbourg",
-
-  // 🌴 Outre-mer
   "guadeloupe",
   "martinique",
   "guyane",
 ];
 
-const SEO_SLUGS = [
-  // ✅ Pages SEO principales
-  "location-paris",
-  "location-marseille",
-  "location-toulouse",
-  "location-guyane",
-  "location-martinique",
+const SEO_ROUTES = [
+  "/location-paris",
+  "/location-marseille",
+  "/location-toulouse",
+  "/location-guyane",
+  "/location-martinique",
 
-  // ✅ Cluster Paris (trafic)
-  "location-appartement-paris",
-  "location-courte-duree-paris",
-  "location-meublee-paris",
-  "location-weekend-paris",
-  "location-studio-paris",
-  "location-airbnb-paris",
+  "/location-appartement-paris",
+  "/location-courte-duree-paris",
+  "/location-meublee-paris",
+  "/location-weekend-paris",
+  "/location-studio-paris",
+  "/location-airbnb-paris",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -62,33 +59,58 @@ export default function sitemap(): MetadataRoute.Sitemap {
   });
 
   // Pages SEO
-  for (const slug of SEO_SLUGS) {
+  SEO_ROUTES.forEach((path) => {
     routes.push({
-      url: `${SITE_URL}/${slug}`,
+      url: `${SITE_URL}${path}`,
       lastModified: now,
       changeFrequency: "weekly",
-      priority: slug === "location-paris" ? 0.9 : 0.8,
+      priority: path === "/location-paris" ? 0.9 : 0.8,
     });
-  }
+  });
 
   // Pages statiques
   routes.push(
-    { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE_URL}/cgv`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${SITE_URL}/cgu`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.2 }
+    {
+      url: `${SITE_URL}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/cgv`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${SITE_URL}/cgu`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${SITE_URL}/privacy`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    }
   );
 
-  // Villes dynamiques
-  for (const city of CITY_SLUGS) {
+  // Pages villes dynamiques
+  CITY_SLUGS.forEach((slug) => {
     routes.push({
-      url: `${SITE_URL}/villes/${city}`,
+      url: `${SITE_URL}/villes/${slug}`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,
     });
-  }
+  });
 
   return routes;
 }
