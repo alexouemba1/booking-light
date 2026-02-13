@@ -1,14 +1,10 @@
 // FILE: src/app/sitemap.ts
 import type { MetadataRoute } from "next";
-// FILE: src/app/sitemap.ts
-import type { MetadataRoute } from "next";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const revalidate = 0;
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
 
 const CITY_SLUGS = [
   "paris",
