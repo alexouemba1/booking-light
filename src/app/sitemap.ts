@@ -1,6 +1,10 @@
 // FILE: src/app/sitemap.ts
 import type { MetadataRoute } from "next";
+// FILE: src/app/sitemap.ts
+import type { MetadataRoute } from "next";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const revalidate = 0;
 
 const SITE_URL =
