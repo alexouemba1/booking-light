@@ -334,7 +334,7 @@ export default function HomePage() {
 
   <p style={{ marginTop: 12, lineHeight: 1.6 }}>
     Que ce soit pour un séjour touristique, un déplacement professionnel ou une location longue durée,
-    Booking-Light facilite la mise en relation partout en France métropolitaine et outre-mer.
+    Booking-Light facilite la mise en relation partout dans le monde, avec réservation simple, paiement sécurisé et sans intermédiaire.
   </p>
 </section>
       <section style={{ marginTop: 18 }}>
