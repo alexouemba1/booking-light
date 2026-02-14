@@ -334,7 +334,7 @@ export default function HomePage() {
 
   <p style={{ marginTop: 12, lineHeight: 1.6 }}>
     Que ce soit pour un séjour touristique, un déplacement professionnel ou une location longue durée,
-    Booking-Light facilite la mise en relation partout dans le monde, avec réservation simple, paiement sécurisé et sans intermédiaire.
+    Avec Booking-Light, publiez et réservez un logement partout dans le monde, que vous soyez en Europe, en Afrique, en Amérique ou ailleurs.
   </p>
 </section>
       <section style={{ marginTop: 18 }}>
