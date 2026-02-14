@@ -38,28 +38,29 @@ const SEO_ROUTES = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  return [
+  const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/villes`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-
-    ...SEO_ROUTES.map((path) => ({
-      url: `${SITE_URL}${path}`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: path === "/location-paris" ? 0.9 : 0.8,
-    })),
-
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/cgv`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/cgu`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
-
-    ...CITY_SLUGS.map((slug) => ({
-      url: `${SITE_URL}/villes/${slug}`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    })),
   ];
+
+  const seoRoutes: MetadataRoute.Sitemap = SEO_ROUTES.map((path) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: path === "/location-paris" ? 0.9 : 0.8,
+  }));
+
+  const cityRoutes: MetadataRoute.Sitemap = CITY_SLUGS.map((slug) => ({
+    url: `${SITE_URL}/villes/${slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...seoRoutes, ...cityRoutes];
 }
