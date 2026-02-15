@@ -80,16 +80,25 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     `}
   </Script>
 
-  {/* Microsoft Clarity */}
-  <Script id="clarity" strategy="afterInteractive">
-    {`
+ {/* Microsoft Clarity */}
+<Script id="clarity" strategy="afterInteractive">
+  {`
+    (function () {
+      // Si window.clarity existe mais n'est pas une fonction, on le reset
+      try {
+        if (window.clarity && typeof window.clarity !== "function") {
+          window.clarity = undefined;
+        }
+      } catch (e) {}
+
       (function(c,l,a,r,i,t,y){
           c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
           t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
           y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
       })(window, document, "clarity", "script", "vhs2k0057g");
-    `}
-  </Script>
+    })();
+  `}
+</Script>
 </head>
 
       <body className="bl-body">
