@@ -250,6 +250,11 @@ export default function AuthPage() {
             <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Accède à ton espace.</div>
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
               Connexion pour publier, gérer tes annonces et suivre tes réservations.
+              <div style={{ marginTop: 10, display: "grid", gap: 6, fontWeight: 800, opacity: 0.85 }}>
+       <div>✅ Gratuit, création en 1 minute</div>
+       <div>🔒 Paiements sécurisés (Stripe Connect)</div>
+       <div>🛠️ Annonce modifiable / supprimable à tout moment</div>
+       </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
