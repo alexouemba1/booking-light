@@ -337,6 +337,53 @@ export default function HomePage() {
     Avec Booking-Light, publiez et réservez un logement partout dans le monde, que vous soyez en Europe, en Afrique, en Amérique ou ailleurs.
   </p>
 </section>
+
+{/* 🏠 Bloc spécial propriétaires */}
+<section
+  style={{
+    marginTop: 50,
+    padding: 28,
+    borderRadius: 18,
+    border: "1px solid rgba(11,18,32,.12)",
+    background: "linear-gradient(135deg, rgba(47,107,255,.08), rgba(0,0,0,.02))",
+    maxWidth: 1000,
+  }}
+>
+  <h2 style={{ fontWeight: 900 }}>
+    🏠 Vous êtes propriétaire ? Publiez en toute confiance.
+  </h2>
+
+  <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+    Booking-Light permet aux propriétaires de louer leur logement facilement,
+    gratuitement et en toute sécurité.
+  </p>
+
+  <div
+    style={{
+      marginTop: 18,
+      display: "grid",
+      gap: 10,
+      fontWeight: 600,
+    }}
+  >
+    <div>✔ 0 € pour publier votre annonce</div>
+    <div>✔ Paiement sécurisé via Stripe Connect</div>
+    <div>✔ Commission claire et transparente</div>
+    <div>✔ Messagerie intégrée avec les voyageurs</div>
+    <div>✔ Plateforme française, support humain</div>
+  </div>
+
+  <div style={{ marginTop: 22 }}>
+    <Link className="bl-btn bl-btn-primary" href="/publish">
+      Publier mon logement gratuitement
+    </Link>
+  </div>
+
+  <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
+    🎯 Les premiers propriétaires bénéficient d’une mise en avant prioritaire.
+  </div>
+</section>
+
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
 
