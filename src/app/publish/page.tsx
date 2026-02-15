@@ -677,11 +677,57 @@ export default function PublishPage() {
         </nav>
       </header>
 
+{/* 🚀 Bloc émotionnel propriétaires */}
+<section
+  style={{
+    marginBottom: 24,
+    padding: 22,
+    borderRadius: 18,
+    border: "1px solid rgba(11,18,32,.12)",
+    background: "linear-gradient(135deg, rgba(47,107,255,.08), rgba(0,0,0,.02))",
+  }}
+>
+  <h2 style={{ fontWeight: 900, fontSize: 22 }}>
+    🏠 Votre logement peut déjà générer des revenus.
+  </h2>
+
+  <p style={{ marginTop: 10, lineHeight: 1.6 }}>
+    Des voyageurs recherchent actuellement un logement dans votre ville.
+    Publiez gratuitement votre annonce et commencez à recevoir des demandes.
+  </p>
+
+  <div
+    style={{
+      marginTop: 16,
+      display: "grid",
+      gap: 8,
+      fontWeight: 600,
+    }}
+  >
+    <div>✔ Gratuit — aucune commission cachée</div>
+    <div>✔ Paiements 100 % sécurisés (Stripe Connect)</div>
+    <div>✔ Annonce modifiable ou supprimable à tout moment</div>
+  </div>
+
+  <div style={{ marginTop: 14, fontSize: 14, opacity: 0.85 }}>
+    🚀 Les premiers logements publiés bénéficient d’une mise en avant prioritaire.
+  </div>
+</section>
       {/* HERO */}
       <section style={hero}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Mets ton logement en ligne en 2 étapes.</div>
+            <div
+  style={{
+    marginTop: 6,
+    fontWeight: 700,
+    fontSize: 14,
+    opacity: 0.85,
+  }}
+>
+  Crée ton annonce en moins de 2 minutes. Aucun frais caché.
+</div>
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
               Crée l’annonce, puis ajoute les images. La première image devient la couverture (modifiable sur la page détail).
             </div>
