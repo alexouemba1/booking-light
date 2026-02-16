@@ -72,7 +72,9 @@ export default function HomePage() {
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [guests, setGuests] = useState<string>("1");
+  const [guests, setGuests] = useState<number>(1);
+const GUESTS_MIN = 1;
+const GUESTS_MAX = 10;
 
   const [mapTitle, setMapTitle] = useState("Carte (aperçu)");
   const [mapLoading, setMapLoading] = useState(false);
@@ -214,17 +216,81 @@ export default function HomePage() {
                 <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
 
-   {/* Voyageurs */}
-   <div>
+              {/* Voyageurs */}
+<div>
   <label className="bl-label">Voyageurs</label>
-  <input
-    className="bl-input"
-    type="number"
-    min={1}
-    step={1}
-    value={guests}
-    onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
-  />
+
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      borderRadius: 12,
+      border: "1px solid rgba(0,0,0,0.12)",
+      overflow: "hidden",
+      background: "white",
+      height: 40,
+    }}
+  >
+    <button
+      type="button"
+      onClick={() => setGuests((g) => Math.max(GUESTS_MIN, g - 1))}
+      disabled={guests <= GUESTS_MIN}
+      style={{
+        width: 40,
+        height: 40,
+        border: "none",
+        background: "transparent",
+        fontSize: 18,
+        fontWeight: 900,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      –
+    </button>
+
+    <div
+      style={{
+        width: 48,
+        textAlign: "center",
+        fontWeight: 900,
+        fontSize: 15,
+      }}
+    >
+      {guests}
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setGuests((g) => Math.min(GUESTS_MAX, g + 1))}
+      disabled={guests >= GUESTS_MAX}
+      style={{
+        width: 40,
+        height: 40,
+        border: "none",
+        background: "transparent",
+        fontSize: 18,
+        fontWeight: 900,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      +
+    </button>
+  </div>
+
+  <div
+    style={{
+      marginTop: 4,
+      fontSize: 12,
+      fontWeight: 700,
+      opacity: 0.6,
+    }}
+  >
+    Min {GUESTS_MIN} · Max {GUESTS_MAX}
+  </div>
 </div>
 
               <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>

@@ -598,6 +598,10 @@ export default function MyListingsPage() {
                       Ouvrir
                     </Link>
 
+
+                    <Link href={`/dashboard/listings/${it.id}/edit`} style={btn} title="Modifier l’annonce">
+                      Modifier
+                    </Link>
                     <Link
                       href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`
                       }
