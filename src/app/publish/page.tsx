@@ -986,7 +986,7 @@ export default function PublishPage() {
 
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <button onClick={uploadImages} disabled={!canUpload} style={primaryBtn(!canUpload)}>
-                {uploading ? "Optimisation + Upload…" : "Uploader les images"}
+               {uploading ? "Téléchargement…" : "Télécharger et publier l’annonce"}
               </button>
 
               {uploading && files.length > 0 && (
@@ -1012,7 +1012,7 @@ export default function PublishPage() {
                 </div>
               )}
 
-              {!listingId && <div style={{ opacity: 0.75, fontSize: 13 }}>(Crée l’annonce d’abord pour activer l’upload.)</div>}
+              {!listingId && <div style={{ opacity: 0.75, fontSize: 13 }}>(Crée l’annonce d’abord, puis tu pourras télécharger les photos.)</div>}
             </div>
           </div>
         </div>
