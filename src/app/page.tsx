@@ -72,7 +72,7 @@ export default function HomePage() {
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [guests, setGuests] = useState<number>(1);
+  const [guests, setGuests] = useState<string>("1");
 
   const [mapTitle, setMapTitle] = useState("Carte (aperçu)");
   const [mapLoading, setMapLoading] = useState(false);
@@ -212,23 +212,43 @@ export default function HomePage() {
                 <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
 
-              <div>
-                <label className="bl-label">Voyageurs</label>
-                <input
-  className="bl-input"
-  type="number"
-  min={1}
-  inputMode="numeric"
-  pattern="[0-9]*"
-  value={guests}
-  onChange={(e) => {
-  const v = e.target.value;
-  if (v === "") return setGuests(1);
-  setGuests(Math.max(1, Number(v) || 1));
-}}
-  style={{ appearance: "textfield" as any }}
-/>
-              </div>
+            <div>
+  <label className="bl-label">Voyageurs</label>
+
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <button
+      type="button"
+      className="bl-btn"
+      onClick={() => setGuests((g) => Math.max(1, g - 1))}
+      aria-label="Diminuer le nombre de voyageurs"
+    >
+      −
+    </button>
+
+    <div
+      className="bl-input"
+      style={{
+        textAlign: "center",
+        minWidth: 70,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 900,
+      }}
+    >
+      {guests}
+    </div>
+
+    <button
+      type="button"
+      className="bl-btn"
+      onClick={() => setGuests((g) => g + 1)}
+      aria-label="Augmenter le nombre de voyageurs"
+    >
+      +
+    </button>
+  </div>
+</div>
 
               <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>
                 {loading ? "Recherche…" : "Rechercher"}
