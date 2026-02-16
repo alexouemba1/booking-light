@@ -170,7 +170,9 @@ export default function HomePage() {
     <main className="bl-container">
       <div className="bl-hero">
         <div className="bl-hero-title">
-          <h1 className="bl-h1">Location d&apos;appartements et maisons en France – Réservation sécurisée</h1>
+          <h1 className="bl-h1">
+  Louez partout dans le monde. Publiez gratuitement. Réservez en toute sécurité.
+</h1>
 
           <div className="bl-hero-meta">
             {items.length} annonce{items.length > 1 ? "s" : ""} · {withPhoto} avec photo
