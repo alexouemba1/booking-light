@@ -214,42 +214,17 @@ export default function HomePage() {
                 <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
 
-            <div>
+   {/* Voyageurs */}
+   <div>
   <label className="bl-label">Voyageurs</label>
-
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <button
-      type="button"
-      className="bl-btn"
-      onClick={() => setGuests((g) => Math.max(1, g - 1))}
-      aria-label="Diminuer le nombre de voyageurs"
-    >
-      −
-    </button>
-
-    <div
-      className="bl-input"
-      style={{
-        textAlign: "center",
-        minWidth: 70,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 900,
-      }}
-    >
-      {guests}
-    </div>
-
-    <button
-      type="button"
-      className="bl-btn"
-      onClick={() => setGuests((g) => g + 1)}
-      aria-label="Augmenter le nombre de voyageurs"
-    >
-      +
-    </button>
-  </div>
+  <input
+    className="bl-input"
+    type="number"
+    min={1}
+    step={1}
+    value={guests}
+    onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
+  />
 </div>
 
               <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>
