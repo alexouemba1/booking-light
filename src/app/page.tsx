@@ -188,6 +188,45 @@ const GUESTS_MAX = 10;
             affichée avant validation de la réservation.
           </div>
 
+{/* 🔒 Premium Trust Badge */}
+<div
+  style={{
+    marginTop: 16,
+    padding: "14px 16px",
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(47,107,255,.08), rgba(0,0,0,.03))",
+    border: "1px solid rgba(47,107,255,.25)",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 14,
+    alignItems: "center",
+    fontWeight: 800,
+    fontSize: 13,
+  }}
+>
+  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    🔒 Paiement sécurisé (Stripe)
+  </span>
+
+  <span style={{ opacity: 0.6 }}>•</span>
+
+  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    💬 Messagerie interne protégée
+  </span>
+
+  <span style={{ opacity: 0.6 }}>•</span>
+
+  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    🛡️ Annonces modérées
+  </span>
+
+  <span style={{ opacity: 0.6 }}>•</span>
+
+  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    🇫🇷 Plateforme française
+  </span>
+</div>
+
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
             <div
               style={{
@@ -361,6 +400,7 @@ const GUESTS_MAX = 10;
       </div>
 
       {/* ✅ Bloc SEO (placé juste après le HERO) */}
+      
       <section style={{ marginTop: 40 }}>
         <h2 style={{ fontWeight: 900 }}>Louer un logement en toute simplicité</h2>
 
