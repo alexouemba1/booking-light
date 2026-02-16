@@ -184,48 +184,131 @@ const GUESTS_MAX = 10;
         <div className="bl-hero-card">
           <div className="bl-hero-card-title">Réserve en toute simplicité, publie gratuitement</div>
           <div className="bl-hero-card-sub">
+            {/* ✨ Premium Trust Badge (animation VISIBLE) */}
+<div
+  className="bl-trust-premium"
+  style={{
+    marginTop: 16,
+    borderRadius: 18,
+    border: "1px solid rgba(47,107,255,.22)",
+    background: "linear-gradient(135deg, rgba(255,255,255,.70), rgba(47,107,255,.06))",
+    boxShadow: "0 14px 40px rgba(0,0,0,.06)",
+    padding: 14,
+    position: "relative",
+    overflow: "hidden",
+  }}
+>
+  {/* Glow animé (on anime le fond, pas juste un translate invisible) */}
+  <div
+    className="bl-trust-glow"
+    style={{
+      position: "absolute",
+      inset: -60,
+      background:
+        "radial-gradient(circle at 20% 20%, rgba(47,107,255,.26), transparent 42%), radial-gradient(circle at 80% 30%, rgba(16,185,129,.20), transparent 44%), radial-gradient(circle at 60% 80%, rgba(59,130,246,.18), transparent 45%)",
+      filter: "blur(6px)",
+      opacity: 0.9,
+      pointerEvents: "none",
+    }}
+  />
+
+  <div style={{ position: "relative" }}>
+    <div style={{ fontWeight: 950, letterSpacing: -0.2, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 14 }}>Confiance & Sécurité</span>
+
+      <span
+        className="bl-trust-chip"
+        style={{
+          padding: "5px 10px",
+          borderRadius: 999,
+          border: "1px solid rgba(0,0,0,.10)",
+          background: "rgba(255,255,255,.70)",
+          fontWeight: 900,
+          fontSize: 12,
+          opacity: 0.9,
+        }}
+      >
+        vérifié
+      </span>
+    </div>
+
+    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+      {[
+        { t: "🔒 Paiement sécurisé (Stripe)", hint: "Paiement traité via Stripe" },
+        { t: "💬 Messagerie interne", hint: "Conversation et preuves dans l’app" },
+        { t: "🧾 Commission transparente", hint: "Affichée avant validation" },
+        { t: "🇫🇷 Support local", hint: "Plateforme française" },
+      ].map((x) => (
+        <span
+          key={x.t}
+          title={x.hint}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px",
+            borderRadius: 999,
+            border: "1px solid rgba(0,0,0,.10)",
+            background: "rgba(255,255,255,.78)",
+            fontWeight: 900,
+            fontSize: 12,
+            opacity: 0.95,
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          {x.t}
+        </span>
+      ))}
+    </div>
+
+    <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, opacity: 0.7 }}>
+      Astuce : privilégie les annonces avec photo + profil complet.
+    </div>
+  </div>
+
+  <style jsx global>{`
+    /* Animation globale du badge (micro pulse) */
+    .bl-trust-premium {
+      animation: bl-trust-pulse 2.8s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    /* Le glow bouge “vraiment” (background-position + légère rotation) */
+    .bl-trust-glow {
+      background-size: 140% 140%;
+      animation: bl-glow-move 3.2s ease-in-out infinite;
+      will-change: transform, background-position, opacity;
+    }
+
+    /* Petite vie sur le chip “vérifié” */
+    .bl-trust-chip {
+      animation: bl-chip-breathe 2.2s ease-in-out infinite;
+    }
+
+    @keyframes bl-trust-pulse {
+      0% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-2px) scale(1.01); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    @keyframes bl-glow-move {
+      0% { transform: translateY(0) rotate(0deg); background-position: 0% 0%; opacity: 0.85; }
+      50% { transform: translateY(-10px) rotate(1.5deg); background-position: 100% 50%; opacity: 1; }
+      100% { transform: translateY(0) rotate(0deg); background-position: 0% 0%; opacity: 0.85; }
+    }
+
+    @keyframes bl-chip-breathe {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+  `}</style>
+</div>
             Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est
             affichée avant validation de la réservation.
           </div>
 
-{/* 🔒 Premium Trust Badge */}
-<div
-  style={{
-    marginTop: 16,
-    padding: "14px 16px",
-    borderRadius: 16,
-    background: "linear-gradient(135deg, rgba(47,107,255,.08), rgba(0,0,0,.03))",
-    border: "1px solid rgba(47,107,255,.25)",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 14,
-    alignItems: "center",
-    fontWeight: 800,
-    fontSize: 13,
-  }}
->
-  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    🔒 Paiement sécurisé (Stripe)
-  </span>
 
-  <span style={{ opacity: 0.6 }}>•</span>
-
-  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    💬 Messagerie interne protégée
-  </span>
-
-  <span style={{ opacity: 0.6 }}>•</span>
-
-  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    🛡️ Annonces modérées
-  </span>
-
-  <span style={{ opacity: 0.6 }}>•</span>
-
-  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    🇫🇷 Plateforme française
-  </span>
-</div>
 
           <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
             <div
