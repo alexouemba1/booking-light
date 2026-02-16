@@ -215,12 +215,20 @@ export default function HomePage() {
               <div>
                 <label className="bl-label">Voyageurs</label>
                 <input
-                  className="bl-input"
-                  type="number"
-                  min={1}
-                  value={guests}
-                  onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
-                />
+  className="bl-input"
+  type="number"
+  min={1}
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={guests}
+  onChange={(e) => {
+    const v = e.target.value;
+    // autorise vide pendant la saisie, puis retombe à 1
+    if (v === "") return setGuests(1);
+    setGuests(Math.max(1, Number(v) || 1));
+  }}
+  style={{ appearance: "textfield" as any }}
+/>
               </div>
 
               <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>
