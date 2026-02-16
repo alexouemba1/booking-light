@@ -222,11 +222,10 @@ export default function HomePage() {
   pattern="[0-9]*"
   value={guests}
   onChange={(e) => {
-    const v = e.target.value;
-    // autorise vide pendant la saisie, puis retombe à 1
-    if (v === "") return setGuests(1);
-    setGuests(Math.max(1, Number(v) || 1));
-  }}
+  const v = e.target.value;
+  if (v === "") return setGuests(1);
+  setGuests(Math.max(1, Number(v) || 1));
+}}
   style={{ appearance: "textfield" as any }}
 />
               </div>
