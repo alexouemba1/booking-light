@@ -94,6 +94,44 @@ export default function MyListingsPage() {
 
   // ✅ Premium checkout
   const [premiumingId, setPremiumingId] = useState<string | null>(null);
+  
+  async function startPremiumCheckout(listingId: string, days = 7) {
+  try {
+    // 1) récupérer le token utilisateur (Supabase)
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      alert("Tu dois être connecté pour activer Premium.");
+      return;
+    }
+
+    // 2) appeler l’API en POST (sinon 405)
+    const res = await fetch("/api/stripe/premium-checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ listing_id: listingId, days }),
+    });
+
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      alert(json?.error ?? "Erreur checkout Premium");
+      return;
+    }
+
+    if (json?.url) {
+      window.location.href = json.url;
+    } else {
+      alert("URL Stripe manquante.");
+    }
+  } catch (e: any) {
+    alert(e?.message ?? "Erreur Premium");
+  }
+}
 
   const isConnectActive = useMemo(() => {
     return !!connectStatus && connectStatus.hasAccount && connectStatus.active;
