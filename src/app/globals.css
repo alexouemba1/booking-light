@@ -665,3 +665,33 @@ a{ color: inherit; }
   outline-offset: 3px;
 }
 
+/* ===== Premium: visible ambient glow ===== */
+@keyframes bl-ambient {
+  0%   { transform: translateY(0px); opacity: .4; }
+  50%  { transform: translateY(-6px); opacity: .9; }
+  100% { transform: translateY(0px); opacity: .4; }
+}
+
+.bl-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.bl-card::before {
+  content: "";
+  position: absolute;
+  inset: -80px;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(47,107,255,.35), transparent 45%),
+    radial-gradient(circle at 85% 30%, rgba(16,185,129,.30), transparent 45%);
+  filter: blur(18px);
+  opacity: .6;
+  animation: bl-ambient 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bl-card > * {
+  position: relative;
+  z-index: 1;
+}

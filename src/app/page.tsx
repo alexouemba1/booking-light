@@ -595,11 +595,41 @@ const GUESTS_MAX = 10;
               const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
 
               return (
-                <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
+                <Link
+  key={l.id}
+  href={`/listing/${l.id}`}
+  className="bl-card"
+  style={{
+    transition: "transform .18s ease, box-shadow .18s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-4px)";
+    e.currentTarget.style.boxShadow = "0 22px 50px rgba(0,0,0,.12)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = "0 10px 24px rgba(0,0,0,.04)";
+  }}
+>
                   <div className="bl-card-media">
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={l.title} />
+                     <img
+  src={img}
+  alt={l.title}
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transition: "transform .35s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "scale(1.05)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "scale(1)";
+  }}
+/>
                     ) : (
                       <span>Pas d’image</span>
                     )}
