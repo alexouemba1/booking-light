@@ -1,4 +1,3 @@
-// FILE: src/app/api/search/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -10,6 +9,13 @@ type ListingHome = {
   billing_unit: string;
   price_cents: number;
   cover_image_path: string | null;
+
+  // ✅ Monétisation
+  is_premium?: boolean | null;
+  premium_until?: string | null;
+
+  // ✅ Pour garder un ordre “recent”
+  created_at?: string | null;
 };
 
 type BookingRow = {
@@ -36,6 +42,14 @@ function isPendingBlocking(expires_at: string | null) {
   return exp > Date.now();
 }
 
+function isPremiumActive(l: ListingHome, nowMs: number) {
+  if (!l.is_premium) return false;
+  if (!l.premium_until) return true; // premium sans date = actif
+  const t = new Date(l.premium_until).getTime();
+  if (!Number.isFinite(t)) return false;
+  return t > nowMs;
+}
+
 export async function GET(req: Request) {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -53,10 +67,10 @@ export async function GET(req: Request) {
     const startDate = String(searchParams.get("start_date") || "").trim();
     const endDate = String(searchParams.get("end_date") || "").trim();
 
-    // ✅ IMPORTANT: on lit la table source (pas listings_home)
+    // ✅ On lit la table source "listings" + colonnes premium
     let q = admin
       .from("listings")
-      .select("id,title,city,kind,billing_unit,price_cents,cover_image_path")
+      .select("id,title,city,kind,billing_unit,price_cents,cover_image_path,is_premium,premium_until,created_at")
       .order("created_at", { ascending: false });
 
     if (city) {
@@ -68,6 +82,28 @@ export async function GET(req: Request) {
 
     const base = (listings || []) as ListingHome[];
 
+    // ✅ TRI PREMIUM SERIEUX:
+    // 1) Premium actifs en premier
+    // 2) Puis premium_until le plus loin (optionnel)
+    // 3) Puis created_at (plus récent)
+    const nowMs = Date.now();
+    base.sort((a, b) => {
+      const ap = isPremiumActive(a, nowMs);
+      const bp = isPremiumActive(b, nowMs);
+      if (ap !== bp) return ap ? -1 : 1;
+
+      const aUntil = a.premium_until ? new Date(a.premium_until).getTime() : 0;
+      const bUntil = b.premium_until ? new Date(b.premium_until).getTime() : 0;
+      if (Number.isFinite(aUntil) && Number.isFinite(bUntil) && aUntil !== bUntil) {
+        return bUntil - aUntil; // plus “long” premium d’abord
+      }
+
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bCreated - aCreated;
+    });
+
+    // Si pas de dates: on renvoie direct (déjà trié premium-first)
     if (!startDate || !endDate) {
       return json({ ok: true, items: base });
     }
@@ -94,6 +130,7 @@ export async function GET(req: Request) {
       else if (st === "pending" && isPendingBlocking(r.expires_at)) blocked.add(r.listing_id);
     }
 
+    // ✅ On filtre en gardant l’ordre (premium-first reste intact)
     const filtered = base.filter((x) => !blocked.has(x.id));
     return json({ ok: true, items: filtered });
   } catch (e: any) {

@@ -15,17 +15,38 @@ type Listing = {
   billing_unit: string;
   cover_image_path: string | null;
   created_at: string;
+
+  // ✅ Premium (si dispo dans listings_home)
+  is_premium?: boolean | null;
+  premium_until?: string | null;
 };
 
 function formatUnit(billing_unit: string) {
   if (billing_unit === "night") return "nuit";
   if (billing_unit === "day") return "jour";
+  if (billing_unit === "week") return "semaine";
+  if (billing_unit === "month") return "mois";
   return "semaine";
 }
 
 function formatPrice(price_cents: number, billing_unit: string) {
   const euros = (price_cents / 100).toFixed(2).replace(".", ",");
   return `${euros} € / ${formatUnit(billing_unit)}`;
+}
+
+function isPremiumActive(it: Listing) {
+  if (!it.is_premium) return false;
+  if (!it.premium_until) return true; // premium sans date = actif
+  const t = new Date(it.premium_until).getTime();
+  if (!Number.isFinite(t)) return false;
+  return t > Date.now();
+}
+
+function formatPremiumUntil(iso?: string | null) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "2-digit" });
 }
 
 type SortKey = "recent" | "price_asc" | "price_desc" | "title_asc";
@@ -71,6 +92,9 @@ export default function MyListingsPage() {
   // ✅ Onboarding Stripe (loueur)
   const [connectingStripe, setConnectingStripe] = useState(false);
 
+  // ✅ Premium checkout
+  const [premiumingId, setPremiumingId] = useState<string | null>(null);
+
   const isConnectActive = useMemo(() => {
     return !!connectStatus && connectStatus.hasAccount && connectStatus.active;
   }, [connectStatus]);
@@ -105,7 +129,6 @@ export default function MyListingsPage() {
 
       setConnectStatus(json as ConnectStatus);
     } catch (e: any) {
-      // On n’empêche pas l’utilisateur de gérer ses annonces si Stripe a un souci
       console.warn("[my-listings] connect status error:", e?.message);
       setConnectStatus(null);
     } finally {
@@ -162,9 +185,12 @@ export default function MyListingsPage() {
     setLoading(true);
     setErrorMsg(null);
 
+    // ✅ IMPORTANT :
+    // Si ta vue listings_home contient is_premium/premium_until => top
+    // Sinon, ça ne casse rien : on ignore ces champs.
     const { data, error } = await supabase
-      .from("listings_home")
-      .select("id,title,city,kind,price_cents,billing_unit,cover_image_path,created_at")
+      .from("listings")
+      .select("id,title,city,kind,price_cents,billing_unit,cover_image_path,created_at,is_premium,premium_until")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
 
@@ -266,6 +292,52 @@ export default function MyListingsPage() {
     } catch {
       const url = `${window.location.origin}/listing/${listingId}`;
       window.prompt("Copie ce lien :", url);
+    }
+  }
+
+  async function startPremiumCheckout(listingId: string, days = 7) {
+    if (premiumingId) return;
+    setErrorMsg(null);
+    setNotice(null);
+    setPremiumingId(listingId);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        setErrorMsg("Tu dois être connecté.");
+        router.replace("/auth");
+        return;
+      }
+
+      const res = await fetch("/api/stripe/premium-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listing_id: listingId, days }),
+      });
+
+      const raw = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error("Réponse invalide du serveur (pas du JSON). Regarde les logs Vercel.");
+      }
+
+      if (!res.ok) throw new Error(json?.error ?? "Erreur paiement Premium.");
+
+      const url = String(json?.url || "");
+      if (!url) throw new Error("URL Stripe Checkout manquante.");
+
+      window.location.href = url;
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur paiement Premium.");
+    } finally {
+      setPremiumingId(null);
     }
   }
 
@@ -376,6 +448,12 @@ export default function MyListingsPage() {
     background: "rgba(47,107,255,.10)",
   };
 
+  const btnPremium: React.CSSProperties = {
+    ...btn,
+    borderColor: "rgba(47,107,255,.34)",
+    background: "linear-gradient(135deg, rgba(47,107,255,.14), rgba(255,255,255,1))",
+  };
+
   const btnDisabled: React.CSSProperties = {
     ...btn,
     cursor: "not-allowed",
@@ -419,6 +497,19 @@ export default function MyListingsPage() {
     border: "1px solid rgba(255, 99, 99, 0.35)",
     fontWeight: 950,
     fontSize: 12,
+  };
+
+  const badgePremium: React.CSSProperties = {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    borderRadius: 999,
+    padding: "6px 10px",
+    background: "rgba(47,107,255,.12)",
+    border: "1px solid rgba(47,107,255,.32)",
+    fontWeight: 950,
+    fontSize: 12,
+    backdropFilter: "blur(8px)",
   };
 
   return (
@@ -467,7 +558,6 @@ export default function MyListingsPage() {
             </select>
           </div>
 
-          {/* Petit texte d’aide (super simple) */}
           <div style={{ marginTop: 10, opacity: 0.7, fontWeight: 800, fontSize: 13, lineHeight: 1.5 }}>
             {connectStatus?.hasAccount && !connectStatus.active
               ? "⏳ Stripe vérifie vos infos. Pendant ce temps, vous pouvez publier, mais les paiements peuvent rester en attente."
@@ -532,6 +622,12 @@ export default function MyListingsPage() {
               const isDeleting = deletingId === it.id;
               const justCopied = copiedId === it.id;
 
+              const premiumActive = isPremiumActive(it);
+              const premiumUntilLabel = formatPremiumUntil(it.premium_until);
+
+              const canPremium = !!img; // ✅ règle simple: premium seulement si annonce a une cover (sinon c'est moche)
+              const isPremiuming = premiumingId === it.id;
+
               return (
                 <div
                   key={it.id}
@@ -568,6 +664,12 @@ export default function MyListingsPage() {
 
                       {!img && <div style={badgeNoPhoto}>Sans photo (ajoute une cover)</div>}
 
+                      {premiumActive && (
+                        <div style={badgePremium} title={premiumUntilLabel ? `Premium jusqu’au ${premiumUntilLabel}` : "Premium actif"}>
+                          ✨ Premium {premiumUntilLabel ? `· ${premiumUntilLabel}` : ""}
+                        </div>
+                      )}
+
                       <div
                         style={{
                           position: "absolute",
@@ -598,18 +700,33 @@ export default function MyListingsPage() {
                       Ouvrir
                     </Link>
 
-
                     <Link href={`/dashboard/listings/${it.id}/edit`} style={btn} title="Modifier l’annonce">
                       Modifier
                     </Link>
+
                     <Link
-                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`
-                      }
+                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`}
                       style={btn}
                       title="Voir les réservations reçues sur cette annonce"
                     >
                       Voir réservations
                     </Link>
+
+                    {/* ✅ PREMIUM BUTTON */}
+                    {premiumActive ? (
+                      <span style={{ ...btn, cursor: "default", borderColor: "rgba(47,107,255,.22)", background: "rgba(47,107,255,.08)" }}>
+                        ✨ Premium actif
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => startPremiumCheckout(it.id, 7)}
+                        style={!canPremium || isPremiuming ? btnDisabled : btnPremium}
+                        disabled={!canPremium || isPremiuming}
+                        title={!canPremium ? "Ajoute une photo de couverture pour activer le Premium" : "Mettre en avant 7 jours"}
+                      >
+                        {isPremiuming ? "Redirection…" : "✨ Mettre en Premium (7j)"}
+                      </button>
+                    )}
 
                     <button onClick={() => copyListingLink(it.id)} style={btn} title="Copier le lien de l’annonce">
                       {justCopied ? "Lien copié" : "Copier le lien"}
