@@ -118,102 +118,104 @@ export default function CityPage() {
       {!loading && !errorMsg && items.length > 0 && (
         <div className="bl-grid" style={{ marginTop: 12 }}>
           {items.map((l) => {
-            const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
-            const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
-            const isVerified = !!l.cover_image_path;
-      const isPremium = !!l.cover_image_path && (l.price_cents ?? 0) > 0;
+  const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
+  const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
 
-            return (
-              <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
-                <div className="bl-card-media">
-                  {/* Badges */}
-<div
-  style={{
-    position: "absolute",
-    top: 10,
-    right: 10,
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    zIndex: 2,
-  }}
->
-  {isVerified && (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        fontWeight: 950,
-        fontSize: 12,
-        border: "1px solid rgba(0,0,0,.10)",
-        background: "rgba(255,255,255,.92)",
-        backdropFilter: "blur(8px)",
-      }}
-      title="Annonce avec photo"
-    >
-      ✅ Vérifié
-    </span>
-  )}
+  const isVerified = !!l.cover_image_path;
+  const isPremium = !!l.cover_image_path && (l.price_cents ?? 0) > 0;
 
-  {isPremium && (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        fontWeight: 950,
-        fontSize: 12,
-        border: "1px solid rgba(47,107,255,.30)",
-        background: "rgba(47,107,255,.12)",
-        backdropFilter: "blur(8px)",
-      }}
-      title="Annonce mise en avant"
-    >
-      ✨ Premium
-    </span>
-  )}
-</div>
-                  {img ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt={l.title} />
-                  ) : (
-                    <span>Pas d’image</span>
-                  )}
-                </div>
+  return (
+    <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
+      <div className="bl-card-media">
+        {/* ✅ Badges (1 seule fois) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+            zIndex: 2,
+          }}
+        >
+          {isVerified && (
+            <span
+              style={{
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontWeight: 950,
+                fontSize: 12,
+                border: "1px solid rgba(0,0,0,.10)",
+                background: "rgba(255,255,255,.92)",
+                backdropFilter: "blur(8px)",
+              }}
+              title="Annonce avec photo"
+            >
+              ✅ Vérifié
+            </span>
+          )}
 
-                <div className="bl-card-body">
-                  <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div className="bl-card-title">{l.title}</div>
+          {isPremium && (
+            <span
+              style={{
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontWeight: 950,
+                fontSize: 12,
+                border: "1px solid rgba(47,107,255,.30)",
+                background: "rgba(47,107,255,.12)",
+                backdropFilter: "blur(8px)",
+              }}
+              title="Annonce mise en avant"
+            >
+              ✨ Premium
+            </span>
+          )}
+        </div>
 
-                    <div
-                      style={{
-                        flex: "0 0 auto",
-                        alignSelf: "flex-start",
-                        whiteSpace: "nowrap",
-                        padding: "6px 10px",
-                        borderRadius: 999,
-                        fontWeight: 800,
-                        fontSize: 13,
-                        border: "1px solid rgba(11,18,32,.12)",
-                        background: "rgba(47,107,255,.10)",
-                      }}
-                      title="Prix"
-                    >
-                      {price} € / {formatUnit(l.billing_unit)}
-                    </div>
-                  </div>
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={l.title} />
+        ) : (
+          <span>Pas d’image</span>
+        )}
+      </div>
 
-                  <div className="bl-card-meta" style={{ marginTop: 6 }}>
-                    {l.city ?? cityName} · {l.kind ?? "Type ?"}
-                  </div>
+      <div className="bl-card-body">
+        <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div className="bl-card-title">{l.title}</div>
 
-                  <div className="bl-card-cta" style={{ marginTop: 8 }}>
-                    Voir détails & réserver →
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+          <div
+            style={{
+              flex: "0 0 auto",
+              alignSelf: "flex-start",
+              whiteSpace: "nowrap",
+              padding: "6px 10px",
+              borderRadius: 999,
+              fontWeight: 800,
+              fontSize: 13,
+              border: "1px solid rgba(11,18,32,.12)",
+              background: "rgba(47,107,255,.10)",
+            }}
+            title="Prix"
+          >
+            {price} € / {formatUnit(l.billing_unit)}
+          </div>
+        </div>
+
+        <div className="bl-card-meta" style={{ marginTop: 6 }}>
+          {l.city ?? cityName} · {l.kind ?? "Type ?"}
+        </div>
+
+        <div className="bl-card-cta" style={{ marginTop: 8 }}>
+          Voir détails & réserver →
+        </div>
+      </div>
+    </Link>
+  );
+})}
         </div>
       )}
     </main>
