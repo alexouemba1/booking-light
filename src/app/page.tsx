@@ -13,6 +13,10 @@ type ListingHome = {
   billing_unit: string;
   price_cents: number;
   cover_image_path: string | null;
+
+  // ✅ Premium (renvoyé par /api/search)
+  is_premium?: boolean | null;
+  premium_until?: string | null;
 };
 
 function formatUnit(u: string) {
@@ -64,6 +68,28 @@ async function geocodeCity(city: string): Promise<{ lat: number; lon: number } |
   return { lat, lon };
 }
 
+// ✅ Premium actif (UI)
+function isPremiumActive(l: ListingHome) {
+  if (!l?.is_premium) return false;
+  if (!l?.premium_until) return true; // fallback
+  return new Date(l.premium_until).getTime() > Date.now();
+}
+
+// ✅ Tri UI “ceinture + bretelles” : premium actifs d’abord, puis premium_until desc
+function sortHomeListings(items: ListingHome[]) {
+  return [...items].sort((a, b) => {
+    const ap = isPremiumActive(a) ? 1 : 0;
+    const bp = isPremiumActive(b) ? 1 : 0;
+    if (bp !== ap) return bp - ap;
+
+    const aUntil = a.premium_until ? new Date(a.premium_until).getTime() : 0;
+    const bUntil = b.premium_until ? new Date(b.premium_until).getTime() : 0;
+    if (bUntil !== aUntil) return bUntil - aUntil;
+
+    return 0; // on ne force pas plus : l’API a déjà fait le tri complet
+  });
+}
+
 export default function HomePage() {
   const [items, setItems] = useState<ListingHome[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +99,8 @@ export default function HomePage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [guests, setGuests] = useState<number>(1);
+  const GUESTS_MIN = 1;
+  const GUESTS_MAX = 10;
 
   const [mapTitle, setMapTitle] = useState("Carte (aperçu)");
   const [mapLoading, setMapLoading] = useState(false);
@@ -84,6 +112,9 @@ export default function HomePage() {
   });
 
   const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
+
+  // ✅ items triés côté UI (ne touche pas à l’API)
+  const sortedItems = useMemo(() => sortHomeListings(items), [items]);
 
   async function search(next?: { city?: string; startDate?: string; endDate?: string; guests?: number }) {
     const c = (next?.city ?? city).trim();
@@ -105,7 +136,10 @@ export default function HomePage() {
 
       if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
 
-      setItems(json?.items ?? []);
+      // ✅ /api/search renvoie déjà is_premium + premium_until
+
+setItems(json?.items ?? []);
+      
     } catch (e) {
       setErrorMsg(getErrorMessage(e));
       setItems([]);
@@ -164,21 +198,166 @@ export default function HomePage() {
     search({ city: "", startDate: "", endDate: "", guests: 1 });
   }
 
-  const withPhoto = items.filter((x) => !!x.cover_image_path).length;
+  const withPhoto = sortedItems.filter((x) => !!x.cover_image_path).length;
 
   return (
     <main className="bl-container">
       <div className="bl-hero">
         <div className="bl-hero-title">
-          <h1 className="bl-h1">Booking-Light</h1>
+          <h1 className="bl-h1">Louez partout dans le monde. Publiez gratuitement. Réservez en toute sécurité.</h1>
+
           <div className="bl-hero-meta">
-            {items.length} annonce{items.length > 1 ? "s" : ""} · {withPhoto} avec photo
+            {sortedItems.length} annonce{sortedItems.length > 1 ? "s" : ""} · {withPhoto} avec photo
           </div>
         </div>
 
         <div className="bl-hero-card">
           <div className="bl-hero-card-title">Réserve en toute simplicité, publie gratuitement</div>
           <div className="bl-hero-card-sub">
+            {/* ✨ Premium Trust Badge (animation VISIBLE) */}
+            <div
+              className="bl-trust-premium"
+              style={{
+                marginTop: 16,
+                borderRadius: 18,
+                border: "1px solid rgba(47,107,255,.22)",
+                background: "linear-gradient(135deg, rgba(255,255,255,.70), rgba(47,107,255,.06))",
+                boxShadow: "0 14px 40px rgba(0,0,0,.06)",
+                padding: 14,
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                className="bl-trust-glow"
+                style={{
+                  position: "absolute",
+                  inset: -60,
+                  background:
+                    "radial-gradient(circle at 20% 20%, rgba(47,107,255,.26), transparent 42%), radial-gradient(circle at 80% 30%, rgba(16,185,129,.20), transparent 44%), radial-gradient(circle at 60% 80%, rgba(59,130,246,.18), transparent 45%)",
+                  filter: "blur(6px)",
+                  opacity: 0.9,
+                  pointerEvents: "none",
+                }}
+              />
+
+              <div style={{ position: "relative" }}>
+                <div
+                  style={{
+                    fontWeight: 950,
+                    letterSpacing: -0.2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>Confiance & Sécurité</span>
+
+                  <span
+                    className="bl-trust-chip"
+                    style={{
+                      padding: "5px 10px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(0,0,0,.10)",
+                      background: "rgba(255,255,255,.70)",
+                      fontWeight: 900,
+                      fontSize: 12,
+                      opacity: 0.9,
+                    }}
+                  >
+                    vérifié
+                  </span>
+                </div>
+
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                  {[
+                    { t: "🔒 Paiement sécurisé (Stripe)", hint: "Paiement traité via Stripe" },
+                    { t: "💬 Messagerie interne", hint: "Conversation et preuves dans l’app" },
+                    { t: "🧾 Commission transparente", hint: "Affichée avant validation" },
+                    { t: "🇫🇷 Support local", hint: "Plateforme française" },
+                  ].map((x) => (
+                    <span
+                      key={x.t}
+                      title={x.hint}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 10px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(0,0,0,.10)",
+                        background: "rgba(255,255,255,.78)",
+                        fontWeight: 900,
+                        fontSize: 12,
+                        opacity: 0.95,
+                        backdropFilter: "blur(8px)",
+                      }}
+                    >
+                      {x.t}
+                    </span>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, opacity: 0.7 }}>
+                  Astuce : privilégie les annonces avec photo + profil complet.
+                </div>
+              </div>
+
+              <style jsx global>{`
+                .bl-trust-premium {
+                  animation: bl-trust-pulse 2.8s ease-in-out infinite;
+                  transform-origin: center;
+                }
+                .bl-trust-glow {
+                  background-size: 140% 140%;
+                  animation: bl-glow-move 3.2s ease-in-out infinite;
+                  will-change: transform, background-position, opacity;
+                }
+                .bl-trust-chip {
+                  animation: bl-chip-breathe 2.2s ease-in-out infinite;
+                }
+                @keyframes bl-trust-pulse {
+                  0% {
+                    transform: translateY(0) scale(1);
+                  }
+                  50% {
+                    transform: translateY(-2px) scale(1.01);
+                  }
+                  100% {
+                    transform: translateY(0) scale(1);
+                  }
+                }
+                @keyframes bl-glow-move {
+                  0% {
+                    transform: translateY(0) rotate(0deg);
+                    background-position: 0% 0%;
+                    opacity: 0.85;
+                  }
+                  50% {
+                    transform: translateY(-10px) rotate(1.5deg);
+                    background-position: 100% 50%;
+                    opacity: 1;
+                  }
+                  100% {
+                    transform: translateY(0) rotate(0deg);
+                    background-position: 0% 0%;
+                    opacity: 0.85;
+                  }
+                }
+                @keyframes bl-chip-breathe {
+                  0% {
+                    transform: scale(1);
+                  }
+                  50% {
+                    transform: scale(1.04);
+                  }
+                  100% {
+                    transform: scale(1);
+                  }
+                }
+              `}</style>
+            </div>
             Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est
             affichée avant validation de la réservation.
           </div>
@@ -206,15 +385,81 @@ export default function HomePage() {
                 <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
 
+              {/* Voyageurs */}
               <div>
                 <label className="bl-label">Voyageurs</label>
-                <input
-                  className="bl-input"
-                  type="number"
-                  min={1}
-                  value={guests}
-                  onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
-                />
+
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    overflow: "hidden",
+                    background: "white",
+                    height: 40,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setGuests((g) => Math.max(GUESTS_MIN, g - 1))}
+                    disabled={guests <= GUESTS_MIN}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    –
+                  </button>
+
+                  <div
+                    style={{
+                      width: 48,
+                      textAlign: "center",
+                      fontWeight: 900,
+                      fontSize: 15,
+                    }}
+                  >
+                    {guests}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setGuests((g) => Math.min(GUESTS_MAX, g + 1))}
+                    disabled={guests >= GUESTS_MAX}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    opacity: 0.6,
+                  }}
+                >
+                  Min {GUESTS_MIN} · Max {GUESTS_MAX}
+                </div>
               </div>
 
               <button type="submit" className="bl-btn bl-btn-primary" disabled={loading} style={{ width: "100%" }}>
@@ -235,7 +480,22 @@ export default function HomePage() {
               </Link>
             </div>
 
-            
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gap: 6,
+                padding: 12,
+                borderRadius: 14,
+                border: "1px solid rgba(11,18,32,.12)",
+                background: "rgba(0,0,0,0.02)",
+                fontWeight: 800,
+              }}
+            >
+              <div>✔️ 0 € pour publier une annonce</div>
+              <div>✔️ Commission affichée avant réservation</div>
+              <div>✔️ Plateforme française, support local</div>
+            </div>
           </form>
 
           <div
@@ -264,7 +524,92 @@ export default function HomePage() {
         </div>
       </div>
 
-      
+      {/* ✅ Bloc SEO (placé juste après le HERO) */}
+      <section style={{ marginTop: 40 }}>
+        <h2 style={{ fontWeight: 900 }}>Louer un logement en toute simplicité</h2>
+
+        <p style={{ marginTop: 12, opacity: 0.9 }}>
+          Booking-Light est une plateforme de location entre particuliers. Trouvez un appartement, une maison ou un studio pour une
+          nuit, une semaine ou un mois. Réservation en ligne, paiement sécurisé, messagerie interne et commission transparente.
+        </p>
+
+        <p style={{ marginTop: 12, opacity: 0.9 }}>
+          Publiez gratuitement votre annonce et recevez des réservations. Locations populaires : Paris, Marseille, Toulouse,
+          Martinique et Guyane.
+        </p>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link className="bl-btn bl-btn-primary" href="/publish">
+            Publier une annonce
+          </Link>
+          <Link className="bl-btn" href="/villes">
+            Voir toutes les villes
+          </Link>
+        </div>
+      </section>
+
+      {/* 🔎 Bloc SEO national */}
+      <section style={{ marginTop: 40, maxWidth: 900 }}>
+        <h2 style={{ fontWeight: 900 }}>Location d’appartements et maisons partout en France</h2>
+
+        <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+          Booking-Light est une plateforme française de location d’appartements et de maisons en courte et moyenne durée. Que vous
+          recherchiez une location à Paris, Marseille, Toulouse, en Martinique ou en Guyane, vous pouvez réserver en ligne avec
+          paiement sécurisé et messagerie intégrée.
+        </p>
+
+        <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+          Les propriétaires publient gratuitement leurs annonces et les voyageurs bénéficient d’une réservation simple, transparente et
+          sécurisée. Chaque annonce affiche clairement le prix par nuit, semaine ou mois, ainsi que les informations essentielles avant
+          validation.
+        </p>
+
+        <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+          Que ce soit pour un séjour touristique, un déplacement professionnel ou une location longue durée, Avec Booking-Light, publiez
+          et réservez un logement partout dans le monde, que vous soyez en Europe, en Afrique, en Amérique ou ailleurs.
+        </p>
+      </section>
+
+      {/* 🏠 Bloc spécial propriétaires */}
+      <section
+        style={{
+          marginTop: 50,
+          padding: 28,
+          borderRadius: 18,
+          border: "1px solid rgba(11,18,32,.12)",
+          background: "linear-gradient(135deg, rgba(47,107,255,.08), rgba(0,0,0,.02))",
+          maxWidth: 1000,
+        }}
+      >
+        <h2 style={{ fontWeight: 900 }}>🏠 Vous êtes propriétaire ? Publiez en toute confiance.</h2>
+
+        <p style={{ marginTop: 12, lineHeight: 1.6 }}>
+          Booking-Light permet aux propriétaires de louer leur logement facilement, gratuitement et en toute sécurité.
+        </p>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: "grid",
+            gap: 10,
+            fontWeight: 600,
+          }}
+        >
+          <div>✔ 0 € pour publier votre annonce</div>
+          <div>✔ Paiement sécurisé via Stripe Connect</div>
+          <div>✔ Commission claire et transparente</div>
+          <div>✔ Messagerie intégrée avec les voyageurs</div>
+          <div>✔ Plateforme française, support humain</div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <Link className="bl-btn bl-btn-primary" href="/publish">
+            Publier mon logement gratuitement
+          </Link>
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>🎯 Les premiers propriétaires bénéficient d’une mise en avant prioritaire.</div>
+      </section>
 
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
@@ -275,20 +620,80 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && !errorMsg && items.length === 0 && <p>Aucune annonce pour le moment.</p>}
+        {!loading && !errorMsg && sortedItems.length === 0 && <p>Aucune annonce pour le moment.</p>}
 
-        {!loading && !errorMsg && items.length > 0 && (
+        {!loading && !errorMsg && sortedItems.length > 0 && (
           <div className="bl-grid">
-            {items.map((l) => {
+            {sortedItems.map((l) => {
+              const premium = isPremiumActive(l);
               const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
               const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
 
+              const baseShadow = premium ? "0 14px 34px rgba(245, 158, 11, .10)" : "0 10px 24px rgba(0,0,0,.04)";
+              const hoverShadow = premium ? "0 22px 50px rgba(245, 158, 11, .18)" : "0 22px 50px rgba(0,0,0,.12)";
+
               return (
-                <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
-                  <div className="bl-card-media">
+                <Link
+                  key={l.id}
+                  href={`/listing/${l.id}`}
+                  className="bl-card"
+                  style={{
+                    transition: "transform .18s ease, box-shadow .18s ease, border-color .18s ease",
+                    boxShadow: baseShadow,
+                    border: premium ? "1px solid rgba(245, 158, 11, .35)" : undefined,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.boxShadow = hoverShadow;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = baseShadow;
+                  }}
+                >
+                  <div className="bl-card-media" style={{ position: "relative" }}>
+                    {/* ✅ Badge Premium */}
+                    {premium && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 10,
+                          top: 10,
+                          zIndex: 5,
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          fontWeight: 950,
+                          fontSize: 12,
+                          border: "1px solid rgba(0,0,0,.12)",
+                          background: "rgba(255, 211, 77, .92)",
+                          color: "rgba(0,0,0,.88)",
+                          boxShadow: "0 10px 22px rgba(0,0,0,.10)",
+                          letterSpacing: -0.2,
+                        }}
+                        title="Annonce Premium"
+                      >
+                        Premium
+                      </div>
+                    )}
+
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={l.title} />
+                      <img
+                        src={img}
+                        alt={l.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform .35s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "scale(1.05)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "scale(1)";
+                        }}
+                      />
                     ) : (
                       <span>Pas d’image</span>
                     )}
@@ -307,8 +712,8 @@ export default function HomePage() {
                           borderRadius: 999,
                           fontWeight: 700,
                           fontSize: 13,
-                          border: "1px solid rgba(11,18,32,.12)",
-                          background: "rgba(47,107,255,.10)",
+                          border: premium ? "1px solid rgba(245, 158, 11, .35)" : "1px solid rgba(11,18,32,.12)",
+                          background: premium ? "rgba(245, 158, 11, .10)" : "rgba(47,107,255,.10)",
                         }}
                         title="Prix"
                       >
@@ -329,6 +734,19 @@ export default function HomePage() {
             })}
           </div>
         )}
+      </section>
+
+      {/* 🔥 Bloc SEO maillage interne */}
+      <section style={{ marginTop: 40 }}>
+        <h2 style={{ fontWeight: 900 }}>Locations populaires</h2>
+
+        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+          <Link href="/location-paris">Location à Paris</Link>
+          <Link href="/location-marseille">Location à Marseille</Link>
+          <Link href="/location-toulouse">Location à Toulouse</Link>
+          <Link href="/location-martinique">Location en Martinique</Link>
+          <Link href="/location-guyane">Location en Guyane</Link>
+        </div>
       </section>
     </main>
   );
