@@ -120,10 +120,59 @@ export default function CityPage() {
           {items.map((l) => {
             const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
             const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
+            const isVerified = !!l.cover_image_path;
+      const isPremium = !!l.cover_image_path && (l.price_cents ?? 0) > 0;
 
             return (
               <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
                 <div className="bl-card-media">
+                  {/* Badges */}
+<div
+  style={{
+    position: "absolute",
+    top: 10,
+    right: 10,
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    zIndex: 2,
+  }}
+>
+  {isVerified && (
+    <span
+      style={{
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontWeight: 950,
+        fontSize: 12,
+        border: "1px solid rgba(0,0,0,.10)",
+        background: "rgba(255,255,255,.92)",
+        backdropFilter: "blur(8px)",
+      }}
+      title="Annonce avec photo"
+    >
+      ✅ Vérifié
+    </span>
+  )}
+
+  {isPremium && (
+    <span
+      style={{
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontWeight: 950,
+        fontSize: 12,
+        border: "1px solid rgba(47,107,255,.30)",
+        background: "rgba(47,107,255,.12)",
+        backdropFilter: "blur(8px)",
+      }}
+      title="Annonce mise en avant"
+    >
+      ✨ Premium
+    </span>
+  )}
+</div>
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={img} alt={l.title} />
