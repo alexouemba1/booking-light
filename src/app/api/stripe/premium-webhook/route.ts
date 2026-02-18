@@ -5,7 +5,10 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 function text(data: string, status = 200) {
-  return new NextResponse(data, { status });
+  return new NextResponse(data, {
+    status,
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 export async function POST(req: Request) {
@@ -32,7 +35,6 @@ export async function POST(req: Request) {
     return text(`Webhook signature error: ${err?.message ?? "error"}`, 400);
   }
 
-  // ✅ Premium: on écoute checkout.session.completed
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
@@ -44,22 +46,18 @@ export async function POST(req: Request) {
 
       const premiumUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-      await admin
-        .from("listings")
-        .update({ is_premium: true, premium_until: premiumUntil })
-        .eq("id", listing_id);
+      await admin.from("listings").update({ is_premium: true, premium_until: premiumUntil }).eq("id", listing_id);
 
-      // (optionnel) historique
       await admin.from("premium_orders").upsert(
-  {
-    listing_id,
-    stripe_session_id: session.id,
-    amount_cents: session.amount_total ?? 0,
-    currency: String(session.currency ?? "eur"),
-    days,
-  },
-  { onConflict: "stripe_session_id" }
-);
+        {
+          listing_id,
+          stripe_session_id: session.id,
+          amount_cents: session.amount_total ?? 0,
+          currency: String(session.currency ?? "eur"),
+          days,
+        },
+        { onConflict: "stripe_session_id" }
+      );
     }
   }
 

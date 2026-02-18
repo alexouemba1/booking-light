@@ -71,6 +71,9 @@ export default function MyListingsPage() {
   // ✅ Onboarding Stripe (loueur)
   const [connectingStripe, setConnectingStripe] = useState(false);
 
+  // ✅ Premium
+  const [premiumingId, setPremiumingId] = useState<string | null>(null);
+
   const isConnectActive = useMemo(() => {
     return !!connectStatus && connectStatus.hasAccount && connectStatus.active;
   }, [connectStatus]);
@@ -266,6 +269,53 @@ export default function MyListingsPage() {
     } catch {
       const url = `${window.location.origin}/listing/${listingId}`;
       window.prompt("Copie ce lien :", url);
+    }
+  }
+
+  // ✅ PREMIUM checkout (Stripe Checkout Session)
+  async function startPremiumCheckout(listingId: string, days = 7) {
+    if (premiumingId) return;
+
+    setErrorMsg(null);
+    setNotice(null);
+    setPremiumingId(listingId);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        alert("Tu dois être connecté pour activer Premium.");
+        return;
+      }
+
+      const res = await fetch("/api/stripe/premium-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listing_id: listingId, days }),
+      });
+
+      const raw = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error("Réponse invalide du serveur (pas du JSON). Regarde les logs Vercel.");
+      }
+
+      if (!res.ok) throw new Error(json?.error ?? "Erreur checkout Premium");
+
+      const url = String(json?.url || "");
+      if (!url) throw new Error("URL Stripe manquante.");
+
+      window.location.href = url;
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Erreur Premium");
+    } finally {
+      setPremiumingId(null);
     }
   }
 
@@ -532,6 +582,8 @@ export default function MyListingsPage() {
               const isDeleting = deletingId === it.id;
               const justCopied = copiedId === it.id;
 
+              const isPremiuming = premiumingId === it.id;
+
               return (
                 <div
                   key={it.id}
@@ -598,18 +650,27 @@ export default function MyListingsPage() {
                       Ouvrir
                     </Link>
 
-
                     <Link href={`/dashboard/listings/${it.id}/edit`} style={btn} title="Modifier l’annonce">
                       Modifier
                     </Link>
+
                     <Link
-                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`
-                      }
+                      href={`/host-bookings?listingId=${encodeURIComponent(it.id)}`}
                       style={btn}
                       title="Voir les réservations reçues sur cette annonce"
                     >
                       Voir réservations
                     </Link>
+
+                    {/* ✅ BOUTON PREMIUM */}
+                    <button
+                      onClick={() => startPremiumCheckout(it.id, 7)}
+                      style={isPremiuming ? btnDisabled : btn}
+                      disabled={isPremiuming}
+                      title="Mettre en avant 7 jours"
+                    >
+                      {isPremiuming ? "Redirection…" : "✨ Mettre en Premium (7j)"}
+                    </button>
 
                     <button onClick={() => copyListingLink(it.id)} style={btn} title="Copier le lien de l’annonce">
                       {justCopied ? "Lien copié" : "Copier le lien"}
