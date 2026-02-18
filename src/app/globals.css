@@ -202,7 +202,12 @@ a{ color: inherit; }
   /* apparition douce */
   animation: blFadeUp .36s ease both;
 }
-
+/* Mobile: 1 colonne */
+@media (max-width: 640px) {
+  .bl-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 .bl-card{
   display:block;
   border: 1px solid var(--bl-border);
@@ -694,4 +699,34 @@ a{ color: inherit; }
 .bl-card > * {
   position: relative;
   z-index: 1;
+}
+
+/* ✅ Grille: responsive */
+.bl-grid{
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* ✅ Mobile: 1 seule colonne + cartes full largeur */
+@media (max-width: 640px){
+  .bl-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ✅ Images: taille stable et jolie */
+.bl-card-media{
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+.bl-card-media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
