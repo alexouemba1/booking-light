@@ -555,7 +555,105 @@ export default function HomePage() {
           Publiez gratuitement votre annonce et recevez des réservations. Locations populaires : Paris, Marseille, Toulouse, Martinique et
           Guyane.
         </p>
+<div
+  style={{
+    marginTop: 18,
+    padding: "20px 22px",
+    borderRadius: 20,
+    border: "1px solid rgba(37, 99, 235, .35)",
+    background: "linear-gradient(180deg, rgba(37, 99, 235, .18), rgba(37, 99, 235, .05))",
+    boxShadow: "0 18px 45px rgba(37, 99, 235, .12)",
+    backdropFilter: "blur(2px)",
+  }}
+>
+  <h3
+    style={{
+      margin: 0,
+      fontWeight: 900,
+      color: "#1e40af",
+      fontSize: 19,
+    }}
+  >
+    Vous êtes propriétaire ? Publiez en toute confiance.
+  </h3>
 
+  <p style={{ marginTop: 12, opacity: 0.95, lineHeight: 1.6 }}>
+    Louez votre appartement, maison ou studio en courte ou moyenne durée. 
+    Créez votre annonce, ajoutez vos photos, fixez vos tarifs et gérez vos disponibilités simplement.
+  </p>
+
+  <ul style={{ marginTop: 12, paddingLeft: 18, lineHeight: 1.6 }}>
+    <li>Messagerie intégrée pour échanger facilement avec les voyageurs</li>
+    <li>Réservation structurée et commission transparente</li>
+    <li>Plateforme conçue pour la France, l’Europe, l’Afrique et l’international</li>
+  </ul>
+
+  <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
+    Vous gardez le contrôle total sur votre calendrier, vos conditions et vos prix — 
+    le tout avec une expérience moderne, claire et professionnelle.
+  </p>
+
+  <section style={{ marginTop: 36 }}>
+  <div
+    style={{
+      padding: "20px 22px",
+      borderRadius: 18,
+      border: "1px solid rgba(0,0,0,.06)",
+      background: "#ffffff",
+      boxShadow: "0 8px 28px rgba(0,0,0,.04)",
+    }}
+  >
+    <h3 style={{ margin: 0, fontWeight: 900 }}>
+      Une plateforme pensée pour les propriétaires exigeants
+    </h3>
+
+    <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
+      Publication simple, gestion claire des réservations, visibilité internationale.
+      Booking-Light a été conçu pour offrir une expérience moderne et structurée,
+      adaptée aux propriétaires qui souhaitent louer efficacement.
+    </p>
+
+    <p style={{ marginTop: 10, opacity: 0.85 }}>
+      Vous contrôlez votre calendrier, vos tarifs et vos conditions — sans complexité inutile.
+    </p>
+  </div>
+</section>
+<section style={{ marginTop: 30 }}>
+  <h3 style={{ fontWeight: 900 }}>
+    Pourquoi publier votre logement sur Booking-Light ?
+  </h3>
+
+  <ul style={{ marginTop: 14, paddingLeft: 20, lineHeight: 1.7 }}>
+    <li>Visibilité en France, en Europe et à l’international</li>
+    <li>Mise en avant Premium pour apparaître en priorité</li>
+    <li>Processus de réservation structuré et transparent</li>
+    <li>Messagerie intégrée pour dialoguer facilement</li>
+    <li>Interface simple, rapide et moderne</li>
+  </ul>
+</section>
+<section
+  style={{
+    marginTop: 30,
+    padding: "18px 22px",
+    borderRadius: 18,
+    background: "linear-gradient(180deg, rgba(245,158,11,.15), rgba(255,255,255,1))",
+    border: "1px solid rgba(245,158,11,.35)",
+  }}
+>
+  <h3 style={{ margin: 0, fontWeight: 900 }}>
+    Option Premium ✨
+  </h3>
+
+  <p style={{ marginTop: 10, lineHeight: 1.6 }}>
+    Augmentez la visibilité de votre annonce en activant l’option Premium.
+    Votre logement apparaît en priorité et bénéficie d’une mise en avant distinctive.
+  </p>
+
+  <p style={{ marginTop: 8, opacity: 0.85 }}>
+    Idéal pour maximiser vos réservations lors des périodes clés.
+  </p>
+</section>
+  </div>
         <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="bl-btn bl-btn-primary" href="/publish">
             Publier une annonce
