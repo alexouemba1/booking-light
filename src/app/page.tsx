@@ -17,6 +17,8 @@ type ListingHome = {
   // ✅ Premium (renvoyé par /api/search)
   is_premium?: boolean | null;
   premium_until?: string | null;
+    rating_avg?: number | null;
+  rating_count?: number | null;
 };
 
 function formatUnit(u: string) {
@@ -787,7 +789,15 @@ export default function HomePage() {
                     <div className="bl-card-meta" style={{ marginTop: 6 }}>
                       {l.city ?? "Ville ?"} · {l.kind ?? "Type ?"}
                     </div>
-
+                    {l.rating_avg != null && l.rating_count != null && l.rating_count > 0 ? (
+                    <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800 }}>
+                    ⭐ {Number(l.rating_avg).toFixed(1)} ({l.rating_count} avis)
+                    </div>
+                    ) : (
+                    <div style={{ marginTop: 6, fontSize: 13, opacity: 0.55 }}>
+                    Aucun avis
+                    </div>
+                    )}
                     {/* ✅ petit texte premium discret */}
                     {premium && (
                       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, opacity: 0.75 }}>

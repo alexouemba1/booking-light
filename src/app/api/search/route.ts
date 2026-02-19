@@ -14,6 +14,10 @@ type ListingHome = {
   is_premium?: boolean | null;
   premium_until?: string | null;
 
+  // ✅ Avis
+  rating_avg?: number | null;
+  rating_count?: number | null;
+
   // ✅ Pour garder un ordre “recent”
   created_at?: string | null;
 };
@@ -67,10 +71,12 @@ export async function GET(req: Request) {
     const startDate = String(searchParams.get("start_date") || "").trim();
     const endDate = String(searchParams.get("end_date") || "").trim();
 
-    // ✅ On lit la table source "listings" + colonnes premium
+    // ✅ On lit la table source "listings" + colonnes premium + avis
     let q = admin
       .from("listings")
-      .select("id,title,city,kind,billing_unit,price_cents,cover_image_path,is_premium,premium_until,created_at")
+      .select(
+        "id,title,city,kind,billing_unit,price_cents,cover_image_path,is_premium,premium_until,created_at,rating_avg,rating_count"
+      )
       .order("created_at", { ascending: false });
 
     if (city) {
