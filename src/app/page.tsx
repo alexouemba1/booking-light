@@ -1,7 +1,7 @@
 // FILE: src/app/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { publicListingImageUrl } from "@/lib/storage";
 
@@ -97,6 +97,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [didSearch, setDidSearch] = useState(false);
+   const resultsRef = useRef<HTMLDivElement | null>(null);
+
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -151,7 +154,14 @@ export default function HomePage() {
     search({ city: "", startDate: "", endDate: "", guests: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+useEffect(() => {
+  if (!didSearch) return;
+  if (loading) return;
 
+  requestAnimationFrame(() => {
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}, [didSearch, loading, errorMsg, items.length]);
   async function updateMapForCity(cityValue: string) {
     const c = cityValue.trim();
     setMapError(null);
@@ -180,12 +190,14 @@ export default function HomePage() {
     }
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await Promise.all([search(), updateMapForCity(city)]);
-  }
+ async function onSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setDidSearch(true);
+  await Promise.all([search(), updateMapForCity(city)]);
+}
 
   function onReset() {
+    setDidSearch(false);
     setCity("");
     setStartDate("");
     setEndDate("");
@@ -665,7 +677,7 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-
+      <div ref={resultsRef}></div>
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
 
