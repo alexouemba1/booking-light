@@ -686,9 +686,16 @@ useEffect(() => {
             <strong>Erreur :</strong> {errorMsg}
           </div>
         )}
-
-        {!loading && !errorMsg && sortedItems.length === 0 && <p>Aucune annonce pour le moment.</p>}
-
+     {!loading && !errorMsg && sortedItems.length === 0 && (
+  <p
+  key={`${city}-${startDate}-${endDate}-${guests}-${sortedItems.length}-${loading}`}
+  style={{
+    animation: "fadeInUp 0.5s ease-out forwards",
+  }}
+>
+  Aucune annonce{city ? ` à ${city}` : ""} pour ces dates.
+</p>
+)}
         {!loading && !errorMsg && sortedItems.length > 0 && (
          <div
           className="bl-grid"
