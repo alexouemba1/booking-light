@@ -314,6 +314,28 @@ export default function ListingPage() {
 
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
+
+  // ✅ Affiche uniquement les périodes encore pertinentes (évite de montrer des dates déjà passées)
+  const upcomingRanges = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return ranges.filter((rr) => {
+      // 1) Si c’est une "option" (pending) encore active, on la garde
+      const st = String(rr.status || "").toLowerCase();
+      if (st === "pending" && rr.expires_at) {
+        const exp = new Date(String(rr.expires_at));
+        if (!Number.isNaN(exp.getTime()) && exp.getTime() > Date.now()) return true;
+      }
+
+      // 2) Sinon, on filtre par date de fin (end_date)
+      const end = new Date(String(rr.end_date));
+      if (Number.isNaN(end.getTime())) return true; // format inattendu -> on affiche plutôt que cacher
+      end.setHours(0, 0, 0, 0);
+      return end >= today;
+    });
+  }, [ranges, nowTick]);
+
   /* =======================
      Reviews
   ======================= */
@@ -1111,11 +1133,11 @@ export default function ListingPage() {
                 <span style={{ fontSize: 12, opacity: 0.7 }}>Auto-refresh 20s</span>
               </div>
 
-              {ranges.length === 0 ? (
+              {upcomingRanges.length === 0 ? (
                 <div style={{ opacity: 0.8 }}>Aucune (pour l’instant).</div>
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
-                  {ranges.map((r, i) => {
+                  {upcomingRanges.map((r, i) => {
                     const st = String(r.status || "").toLowerCase();
 
                     let right: React.ReactNode = <Badge tone="neutral">{st}</Badge>;
