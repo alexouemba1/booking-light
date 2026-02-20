@@ -221,9 +221,10 @@ export default function AuthPage() {
       {/* TOPBAR */}
       <header style={topbar}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.2 }}>Connexion</h1>
+          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.2 }}>Publiez votre logement gratuitement</h1>
           <div style={{ marginTop: 6, opacity: 0.75, fontWeight: 800, fontSize: 13 }}>
-            Pour publier une annonce, il faut être connecté.
+            Créez votre compte en 1 minute pour publier, recevoir des demandes et gérer vos réservations.
+            Aucune carte bancaire requise.
           </div>
         </div>
 
@@ -247,11 +248,12 @@ export default function AuthPage() {
       <section style={hero}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Accède à ton espace.</div>
+            <div style={{ fontSize: 18, fontWeight: 950, letterSpacing: -0.2 }}>Espace propriétaire</div>
             <div style={{ marginTop: 6, opacity: 0.78, lineHeight: 1.35 }}>
-              Connexion pour publier, gérer tes annonces et suivre tes réservations.
+              Connectez-vous ou inscrivez-vous pour publier votre logement et recevoir vos premières réservations.
               <div style={{ marginTop: 10, display: "grid", gap: 6, fontWeight: 800, opacity: 0.85 }}>
        <div>✅ Gratuit, création en 1 minute</div>
+               Aucune carte bancaire requise
        <div>🔒 Paiements sécurisés (Stripe Connect)</div>
        <div>🛠️ Annonce modifiable / supprimable à tout moment</div>
        </div>
@@ -268,7 +270,7 @@ export default function AuthPage() {
       <div style={card}>
         <div style={cardHead}>
           <div style={{ fontWeight: 950, letterSpacing: -0.1 }}>
-            {userEmail ? "Tu es connecté" : mode === "login" ? "Se connecter" : "Créer un compte"}
+            {userEmail ? "Tu es connecté" : mode === "login" ? "Accéder à mon espace propriétaire" : "Créer mon compte propriétaire"}
           </div>
 
           {!userEmail && (
@@ -354,7 +356,7 @@ export default function AuthPage() {
                       ? "Connexion…"
                       : "Création…"
                     : mode === "login"
-                    ? "Se connecter"
+                    ? "Accéder à mon espace propriétaire"
                     : "Créer le compte"}
                 </button>
               </form>
@@ -368,7 +370,7 @@ export default function AuthPage() {
               )}
 
               <div style={{ marginTop: 12, fontSize: 13, opacity: 0.8, lineHeight: 1.35 }}>
-                Si l’inscription ne marche pas, vérifie dans Supabase → Authentication → Providers que “Email” est activé.
+                Si l’inscription ne marche pas, Besoin d’aide ? Contactez-nous → Authentication → Providers que “Email” est activé.
               </div>
             </>
           )}
