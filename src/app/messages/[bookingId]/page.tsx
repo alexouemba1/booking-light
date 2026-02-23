@@ -292,7 +292,7 @@ export default function MessagesThreadPage() {
   }
 
   return (
-    <main className="bl-container" style={{ maxWidth: 820 }}>
+    <main className="bl-container">
       <div
         style={{
           display: "flex",
@@ -328,8 +328,9 @@ export default function MessagesThreadPage() {
         </div>
       )}
 
+      {/* ✅ Carte conversation : pleine hauteur + scroll interne */}
       <div
-        className="bl-card"
+        className="bl-panel bl-chat-card"
         style={{
           marginTop: 12,
           padding: 12,
@@ -338,7 +339,8 @@ export default function MessagesThreadPage() {
           background: "white",
         }}
       >
-        <div style={{ maxHeight: 440, overflow: "auto", padding: 8 }}>
+        {/* ✅ Zone messages scrollable */}
+        <div className="bl-chat-messages" style={{ padding: 8 }}>
           {loading && messages.length === 0 ? (
             <div style={{ opacity: 0.7 }}>Chargement…</div>
           ) : messages.length === 0 ? (
@@ -372,42 +374,47 @@ export default function MessagesThreadPage() {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Écrire un message…"
-            style={{
-              flex: 1,
-              minHeight: 46,
-              maxHeight: 120,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              padding: 10,
-              fontWeight: 700,
-              resize: "vertical",
-            }}
-          />
+        {/* ✅ Composer collé en bas */}
+        <div className="bl-chat-composer">
+          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <textarea
+              className="bl-chat-input"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Écrire un message…"
+              style={{
+                flex: 1,
+                minHeight: 46,
+                maxHeight: 120,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+                padding: 10,
+                fontWeight: 700,
+                resize: "vertical",
+              }}
+            />
 
-          <button
-            onClick={send}
-            disabled={!canSend}
-            style={{
-              width: 140,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.10)",
-              background: canSend ? "rgba(17,24,39,1)" : "rgba(0,0,0,0.08)",
-              color: canSend ? "white" : "rgba(0,0,0,0.45)",
-              fontWeight: 900,
-              cursor: canSend ? "pointer" : "not-allowed",
-            }}
-          >
-            Envoyer
-          </button>
-        </div>
+            <button
+              className="bl-chat-send"
+              onClick={send}
+              disabled={!canSend}
+              style={{
+                width: 140,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.10)",
+                background: canSend ? "rgba(17,24,39,1)" : "rgba(0,0,0,0.08)",
+                color: canSend ? "white" : "rgba(0,0,0,0.45)",
+                fontWeight: 900,
+                cursor: canSend ? "pointer" : "not-allowed",
+              }}
+            >
+              Envoyer
+            </button>
+          </div>
 
-        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-          Astuce : reste simple au début. Le “Booking-like”, c’est surtout la confiance et la traçabilité.
+          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
+            Astuce : reste simple au début. Le “Booking-like”, c’est surtout la confiance et la traçabilité.
+          </div>
         </div>
       </div>
     </main>

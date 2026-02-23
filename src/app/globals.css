@@ -30,7 +30,7 @@ a{ color: inherit; }
 .bl-help{ margin-top: 8px; font-size: 13px; opacity: .75; }
 
 .bl-container{
-  max-width: 1040px;
+  max-width: 1200px; /* ✅ (avant: 1040px) */
   margin: 0 auto;
   padding: 24px;
 }
@@ -46,7 +46,7 @@ a{ color: inherit; }
 }
 
 .bl-topbar-inner{
-  max-width: 1040px;
+  max-width: 1200px; /* ✅ (avant: 1040px) */
   margin: 0 auto;
   padding: 14px 24px;
   display:flex;
@@ -548,7 +548,7 @@ a{ color: inherit; }
 }
 
 .bl-footer-inner{
-  max-width: 1040px;
+  max-width: 1200px; /* ✅ (avant: 1040px) */
   margin: 0 auto;
   padding: 18px 24px;
   display: flex;
@@ -604,7 +604,7 @@ a{ color: inherit; }
 }
 
 .bl-footer-bottom-inner{
-  max-width: 1040px;
+  max-width: 1200px; /* ✅ (avant: 1040px) */
   margin: 0 auto;
   padding: 12px 24px;
   font-size: 12px;
@@ -740,4 +740,35 @@ a{ color: inherit; }
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ===== Chat / Conversation (amélioration lisibilité) ===== */
+.bl-chat-card{
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 520px;
+}
+
+.bl-chat-messages{
+  flex: 1;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.bl-chat-composer{
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.bl-chat-input{
+  width: 100%;
+  min-height: 44px;
+}
+
+.bl-chat-send{
+  min-width: 140px;
 }

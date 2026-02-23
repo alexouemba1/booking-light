@@ -65,46 +65,32 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
-     <head>
-  {/* Google Analytics */}
-  <Script
-    src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M"
-    strategy="afterInteractive"
-  />
-  <Script id="ga4" strategy="afterInteractive">
-    {`
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-9TRP7B6V1M');
-    `}
-  </Script>
-
- {/* Microsoft Clarity */}
-<Script id="clarity" strategy="afterInteractive">
-  {`
-    (function () {
-      // Si window.clarity existe mais n'est pas une fonction, on le reset
-      try {
-        if (window.clarity && typeof window.clarity !== "function") {
-          window.clarity = undefined;
-        }
-      } catch (e) {}
-
-      (function(c,l,a,r,i,t,y){
-          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "vhs2k0057g");
-    })();
-  `}
-</Script>
-</head>
-
       <body className="bl-body">
         <TopbarClient />
 
         <div className="bl-page">{children}</div>
+
+        {/* ✅ Scripts analytics (placés dans <body> pour éviter les soucis d'hydration / insertBefore) */}
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9TRP7B6V1M');
+          `}
+        </Script>
+
+        {/* ✅ Microsoft Clarity (version stable: pas de snippet insertBefore) */}
+        <Script
+          id="ms-clarity"
+          strategy="afterInteractive"
+          src="https://www.clarity.ms/tag/vhs2k0057g"
+        />
 
         <footer className="bl-footer">
           <div className="bl-footer-inner">
@@ -174,7 +160,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </a>
                 </span>
 
-                {/* ✅ Nouveau bouton WhatsApp (logo + CTA) */}
+                {/* ✅ Bouton WhatsApp */}
                 <a
                   href="https://wa.me/33777399242"
                   target="_blank"
@@ -182,7 +168,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   title="Contacter sur WhatsApp"
                   className="bl-whatsapp-btn"
                 >
-                  <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 32 32"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
                     <path
                       fill="#25D366"
                       d="M16 3C9.383 3 4 8.383 4 15c0 2.676.902 5.17 2.414 7.176L5 29l7.01-1.395A11.93 11.93 0 0 0 16 27c6.617 0 12-5.383 12-12S22.617 3 16 3z"
