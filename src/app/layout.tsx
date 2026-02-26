@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import TopbarClient from "@/components/TopbarClient";
+import ClarityRouteEvents from "@/components/ClarityRouteEvents";
 
 // ✅ On évite localhost en prod si jamais l'ENV n'est pas set
 const SITE_URL =
