@@ -59,6 +59,46 @@ export default function Page() {
           .
         </p>
       </section>
+
+      {/* Bloc premium 1 */}
+      <section className="bl-card" style={{ padding: 16, marginTop: 16 }}>
+        <h2 style={{ fontWeight: 900 }}>Pourquoi louer un logement à Kourou ?</h2>
+
+        <p style={{ marginTop: 10, lineHeight: 1.65, opacity: 0.9 }}>
+          Kourou est une ville stratégique en Guyane, avec des périodes de forte demande liées aux
+          activités locales et aux déplacements professionnels. Une <strong>location à Kourou</strong> peut
+          être idéale pour une mission temporaire, un séjour pro, ou un besoin de logement flexible.
+        </p>
+
+        <p style={{ marginTop: 10, lineHeight: 1.65, opacity: 0.9 }}>
+          La <strong>location courte durée à Kourou</strong> permet de rester proche de vos points d’intérêt
+          tout en gardant une organisation simple : réserver en ligne, payer de façon sécurisée, et adapter
+          votre séjour selon votre planning.
+        </p>
+      </section>
+
+      {/* Bloc premium 2 */}
+      <section className="bl-card" style={{ padding: 16, marginTop: 16 }}>
+        <h2 style={{ fontWeight: 900 }}>Conseils pour une location meublée à Kourou</h2>
+
+        <p style={{ marginTop: 10, lineHeight: 1.65, opacity: 0.9 }}>
+          Pour les séjours professionnels, privilégiez un logement meublé avec un bon niveau de confort
+          (couchage, cuisine, espace de travail). Indiquez clairement vos dates et votre durée, et gardez
+          une marge de flexibilité : cela augmente les chances de trouver une annonce disponible.
+        </p>
+
+        <p style={{ marginTop: 10, lineHeight: 1.65, opacity: 0.9 }}>
+          Vous pouvez aussi consulter{" "}
+          <Link className="bl-link" href="/location-cayenne">
+            Location à Cayenne
+          </Link>{" "}
+          si vous cherchez une alternative proche, ou revenir sur{" "}
+          <Link className="bl-link" href="/location-guyane">
+            la page Guyane
+          </Link>{" "}
+          pour voir toutes les annonces du territoire.
+        </p>
+      </section>
     </SeoLanding>
   );
 }
