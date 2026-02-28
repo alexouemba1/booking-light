@@ -103,6 +103,25 @@ export default function Page() {
           pour voir l’ensemble des annonces.
         </p>
       </section>
+      <section className="bl-card" style={{ padding: 16, marginTop: 16 }}>
+  <h2 style={{ fontWeight: 900 }}>Explorer la Guyane</h2>
+
+  <p style={{ marginTop: 10, opacity: 0.9, lineHeight: 1.65 }}>
+    Continuez votre recherche :
+  </p>
+
+  <ul style={{ marginTop: 10, lineHeight: 1.9, paddingLeft: 18 }}>
+    <li>
+      <Link className="bl-link" href="/location-guyane">Toutes les locations en Guyane</Link>
+    </li>
+    <li>
+      <Link className="bl-link" href="/location-cayenne">Location à Cayenne</Link>
+    </li>
+    <li>
+      <Link className="bl-link" href="/location-kourou">Location à Kourou</Link>
+    </li>
+  </ul>
+</section>
     </SeoLanding>
   );
 }
