@@ -67,6 +67,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fr">
       <body className="bl-body">
+
+<Script
+  src="https://www.googletagmanager.com/gtag/js?id=G-9TRP7B6V1M"
+  strategy="afterInteractive"
+/>
+<Script id="google-tag" strategy="afterInteractive">
+  {`
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-9TRP7B6V1M');
+  `}
+</Script>
+
         <TopbarClient />
 
         <div className="bl-page">{children}</div>
