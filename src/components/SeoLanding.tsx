@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { publicListingImageUrl } from "@/lib/storage";
 
 type ListingHome = {
@@ -21,14 +22,27 @@ function formatUnit(u: string) {
 
 async function getListings(cityName: string): Promise<ListingHome[]> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lightbooker.com";
-  const url = new URL("/api/search", siteUrl);
-  url.searchParams.set("city", cityName);
-  url.searchParams.set("guests", "1");
+  const cities =
+    cityName === "Guyane"
+      ? ["Cayenne", "Kourou", "Saint-Laurent-du-Maroni"]
+      : [cityName];
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return json?.items ?? [];
+  const all: ListingHome[] = [];
+
+  for (const city of cities) {
+    const url = new URL("/api/search", siteUrl);
+    url.searchParams.set("city", city);
+    url.searchParams.set("guests", "1");
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) continue;
+
+    const json = await res.json();
+    const items = json?.items ?? [];
+    all.push(...items);
+  }
+
+  return all;
 }
 
 export default async function SeoLanding(props: {
@@ -38,8 +52,18 @@ export default async function SeoLanding(props: {
   faq: { q: string; a: string }[];
   backHref?: string;
   backLabel?: string;
+  children?: ReactNode; // ✅ AJOUT (optionnel)
 }) {
-  const { titleH1, intro, cityName, faq, backHref = "/", backLabel = "Accueil" } = props;
+  const {
+    titleH1,
+    intro,
+    cityName,
+    faq,
+    backHref = "/",
+    backLabel = "Accueil",
+    children, // ✅ AJOUT
+  } = props;
+
   const items = await getListings(cityName);
 
   const faqLdJson = {
@@ -93,58 +117,75 @@ export default async function SeoLanding(props: {
         )}
 
         {items.length > 0 && (
-          <div className="bl-grid" style={{ marginTop: 12 }}>
-            {items.map((l) => {
-              const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
-              const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
+          <div
+  style={{
+    marginTop: 12,
+    display: "grid",
+    gap: 16,
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    alignItems: "start",
+  }}
+>
+  {items.map((l) => {
+    const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
+    const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
 
-              return (
-                <Link key={l.id} href={`/listing/${l.id}`} className="bl-card">
-                  <div className="bl-card-media">
-                    {img ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={l.title} />
-                    ) : (
-                      <span>Pas d’image</span>
-                    )}
-                  </div>
+   return (
+  <div key={l.id} style={{ maxWidth: 420 }}>
+    <Link href={`/listing/${l.id}`} className="bl-card">
+      <div className="bl-card-media" style={{ height: 180, overflow: "hidden" }}>
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={img}
+            alt={l.title}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <span>Pas d’image</span>
+        )}
+      </div>
 
-                  <div className="bl-card-body">
-                    <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div className="bl-card-title">{l.title}</div>
+      <div className="bl-card-body">
+        <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div className="bl-card-title">{l.title}</div>
 
-                      <div
-                        style={{
-                          flex: "0 0 auto",
-                          alignSelf: "flex-start",
-                          whiteSpace: "nowrap",
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          fontWeight: 800,
-                          fontSize: 13,
-                          border: "1px solid rgba(11,18,32,.12)",
-                          background: "rgba(47,107,255,.10)",
-                        }}
-                        title="Prix"
-                      >
-                        {price} € / {formatUnit(l.billing_unit)}
-                      </div>
-                    </div>
-
-                    <div className="bl-card-meta" style={{ marginTop: 6 }}>
-                      {l.city ?? cityName} · {l.kind ?? "Type ?"}
-                    </div>
-
-                    <div className="bl-card-cta" style={{ marginTop: 8 }}>
-                      Voir détails & réserver →
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          <div
+            style={{
+              flex: "0 0 auto",
+              alignSelf: "flex-start",
+              whiteSpace: "nowrap",
+              padding: "6px 10px",
+              borderRadius: 999,
+              fontWeight: 800,
+              fontSize: 13,
+              border: "1px solid rgba(11,18,32,.12)",
+              background: "rgba(47,107,255,.10)",
+            }}
+            title="Prix"
+          >
+            {price} € / {formatUnit(l.billing_unit)}
           </div>
+        </div>
+
+        <div className="bl-card-meta" style={{ marginTop: 6 }}>
+          {l.city ?? cityName} · {l.kind ?? "Type ?"}
+        </div>
+
+        <div className="bl-card-cta" style={{ marginTop: 8 }}>
+          Voir détails & réserver →
+        </div>
+      </div>
+    </Link>
+  </div>
+);
+  })}
+</div>
         )}
       </section>
+
+      {/* ✅ AJOUT : contenu SEO optionnel (ne s’affiche que si tu le passes) */}
+      {children && <section style={{ marginTop: 40 }}>{children}</section>}
     </main>
   );
 }
