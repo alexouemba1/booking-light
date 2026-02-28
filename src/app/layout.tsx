@@ -18,12 +18,12 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Booking-Light",
-    template: "%s · Booking-Light",
+    default: "Lightbooker",
+    template: "%s · Lightbooker",
   },
   description:
-    "Booking-Light — location d’appartements et maisons en France (et Outre-mer). Publiez une annonce gratuitement, réservez en ligne avec paiement sécurisé et messagerie interne.",
-  applicationName: "Booking-Light",
+    "Lightbooker — location d’appartements et maisons en France (et Outre-mer). Publiez une annonce gratuitement, réservez en ligne avec paiement sécurisé et messagerie interne.",
+  applicationName: "Lightbooker",
   alternates: {
     canonical: "/",
   },
@@ -40,8 +40,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "/",
-    siteName: "Booking-Light",
-    title: "Booking-Light",
+    siteName: "Lightbooker",
+    title: "Lightbooker",
     description:
       "Publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne. Paiement sécurisé.",
     images: [
@@ -49,14 +49,14 @@ export const metadata: Metadata = {
         url: "/android-chrome-512x512.png",
         width: 512,
         height: 512,
-        alt: "Booking-Light",
+        alt: "Lightbooker",
       },
     ],
     locale: "fr_FR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Booking-Light",
+    title: "Lightbooker",
     description:
       "Publiez une annonce gratuitement, gérez vos réservations et échangez via la messagerie interne. Paiement sécurisé.",
     images: ["/android-chrome-512x512.png"],
@@ -85,7 +85,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <footer className="bl-footer">
           <div className="bl-footer-inner">
             <div className="bl-footer-left">
-              <div className="bl-footer-brand">Booking-Light</div>
+              <div className="bl-footer-brand">Lightbooker</div>
 
               <div
                 style={{
@@ -131,7 +131,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* 🔽 Footer bottom avec WhatsApp */}
           <div className="bl-footer-bottom">
             <div className="bl-footer-inner bl-footer-bottom-inner">
-              <div>© {new Date().getFullYear()} Booking-Light</div>
+              <div>© {new Date().getFullYear()} Lightbooker</div>
 
               <div
                 className="bl-footer-muted"

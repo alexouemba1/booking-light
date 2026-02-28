@@ -209,7 +209,7 @@ export default function TopbarClient() {
           <div className="bl-brand">
             <Link className="bl-brand-link" href="/" style={{ display: "flex", alignItems: "center" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-booking-light.png" alt="Booking Light" style={{ height: 48 }} />
+              <img src="/logo-booking-light.png" alt="Booking Light" style={{ height: 100 }} />
             </Link>
           </div>
 
