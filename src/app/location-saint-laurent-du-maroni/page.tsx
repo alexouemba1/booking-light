@@ -3,9 +3,9 @@ import Link from "next/link";
 import SeoLanding from "@/components/SeoLanding";
 
 export const metadata: Metadata = {
-  title: "Location à Saint-Laurent-du-Maroni | Meublés & maisons | Lightbooker",
+  title: "Location à Saint-Laurent-du-Maroni en Guyane | Meublés | Lightbooker",
   description:
-    "Trouvez une location à Saint-Laurent-du-Maroni : studios, appartements et maisons. Nuit, semaine ou mois. Réservation en ligne et paiement sécurisé avec Lightbooker.",
+    "Trouvez une location à Saint-Laurent-du-Maroni : studios, appartements et maisons meublées. Nuit, semaine ou mois. Paiement sécurisé et réservation simple.",
 };
 
 export default function Page() {

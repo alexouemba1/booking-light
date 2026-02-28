@@ -3,9 +3,9 @@ import Link from "next/link";
 import SeoLanding from "@/components/SeoLanding";
 
 export const metadata: Metadata = {
-  title: "Location à Cayenne | Appartements & maisons | Lightbooker",
+  title: "Location à Cayenne en Guyane | Studios & Appartements | Lightbooker",
   description:
-    "Trouvez une location à Cayenne : studios, appartements et maisons. Nuit, semaine ou mois. Réservation en ligne et paiement sécurisé avec Lightbooker.",
+    "Trouvez une location à Cayenne en Guyane : studios, appartements et maisons. Court séjour ou longue durée. Réservation en ligne et paiement sécurisé.",
 };
 
 export default function Page() {

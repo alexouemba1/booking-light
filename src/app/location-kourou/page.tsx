@@ -3,9 +3,9 @@ import Link from "next/link";
 import SeoLanding from "@/components/SeoLanding";
 
 export const metadata: Metadata = {
-  title: "Location à Kourou | Court séjour & meublés | Lightbooker",
+  title: "Location à Kourou en Guyane | Meublés & Court séjour | Lightbooker",
   description:
-    "Trouvez une location à Kourou : studios, appartements et maisons. Nuit, semaine ou mois. Réservation en ligne et paiement sécurisé avec Lightbooker.",
+    "Location à Kourou : studios, appartements et maisons meublées. Idéal pour séjour professionnel ou mission temporaire. Réservation en ligne sécurisée.",
 };
 
 export default function Page() {

@@ -3,9 +3,9 @@ import Link from "next/link";
 import SeoLanding from "@/components/SeoLanding";
 
 export const metadata: Metadata = {
-  title: "Location courte durée en Guyane | Appartements & maisons | Lightbooker",
+  title: "Location en Guyane (Cayenne, Kourou, Saint-Laurent) | Lightbooker",
   description:
-    "Location en Guyane : appartements, studios et maisons à Cayenne, Kourou et Saint-Laurent-du-Maroni. Nuit, semaine ou mois. Paiement sécurisé et réservation en ligne.",
+    "Location courte durée en Guyane : appartements, studios et maisons à Cayenne, Kourou et Saint-Laurent-du-Maroni. Nuit, semaine ou mois. Réservation en ligne et paiement sécurisé.",
 };
 
 export default function Page() {
