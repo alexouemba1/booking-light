@@ -207,10 +207,23 @@ export default function TopbarClient() {
         <div className="bl-topbar-inner">
           {/* LOGO */}
           <div className="bl-brand">
-            <Link className="bl-brand-link" href="/" style={{ display: "flex", alignItems: "center" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-booking-light.png" alt="Booking Light" style={{ height: 90 }} />
-            </Link>
+           <Link
+  className="bl-brand-link"
+  href="/"
+  style={{ display: "flex", alignItems: "center", padding: "4px 0" }}
+>
+  {/* eslint-disable-next-line @next/next/no-img-element */}
+  <img
+  src="/logo-booking-light.png"
+  alt="Lightbooker"
+  style={{
+    height: 64,
+    width: "auto",
+    display: "block",
+    transition: "transform 120ms ease, opacity 120ms ease",
+  }}
+/>
+</Link>
           </div>
 
           {/* Bouton menu (mobile) */}
