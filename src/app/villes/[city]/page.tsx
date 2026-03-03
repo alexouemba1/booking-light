@@ -122,7 +122,15 @@ export default function CityPage() {
       )}
 
       {!loading && !errorMsg && items.length > 0 && (
-        <div className="bl-grid" style={{ marginTop: 12, overflow: "visible" }}>
+        <div
+  className="bl-grid"
+  style={{
+    marginTop: 12,
+    overflow: "visible",
+    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+    alignItems: "start",
+  }}
+>
           {items.map((l) => {
             const premium = isPremiumActive(l);
             const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
