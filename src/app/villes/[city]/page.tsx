@@ -1,4 +1,3 @@
-// FILE: src/app/villes/[city]/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -72,7 +71,13 @@ export default function CityPage() {
         sp.set("guests", "1");
 
         const res = await fetch(`/api/search?${sp.toString()}`, { cache: "no-store" });
-        const json: any = await res.json();
+
+        let json: any = null;
+        try {
+          json = await res.json();
+        } catch {
+          json = null;
+        }
 
         if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
         if (!alive) return;
@@ -94,6 +99,20 @@ export default function CityPage() {
     };
   }, [citySlug, cityName]);
 
+  // ✅ Premium en haut (sans casser l’ordre des autres)
+  const sortedItems = useMemo(() => {
+    const premiumCount = useMemo(() => sortedItems.filter(isPremiumActive).length, [sortedItems]);
+const totalCount = sortedItems.length;
+    const copy = [...items];
+    copy.sort((a, b) => {
+      const ap = isPremiumActive(a) ? 1 : 0;
+      const bp = isPremiumActive(b) ? 1 : 0;
+      if (bp !== ap) return bp - ap;
+      return 0; // on ne touche pas à l’ordre des non-premium entre eux
+    });
+    return copy;
+  }, [items]);
+
   return (
     <main className="bl-container">
       <div className="bl-detail-top" style={{ flexWrap: "wrap" }}>
@@ -108,7 +127,39 @@ export default function CityPage() {
       <h1 className="bl-h1" style={{ marginTop: 12 }}>
         Annonces à {cityName || "—"}
       </h1>
+{!loading && !errorMsg && (
+  <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+    <span
+      className="bl-card"
+      style={{
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontWeight: 900,
+        fontSize: 13,
+        background: "rgba(11,18,32,.04)",
+      }}
+    >
+      {totalCount} annonce{totalCount > 1 ? "s" : ""}
+    </span>
 
+    {premiumCount > 0 && (
+      <span
+        className="bl-card"
+        style={{
+          padding: "6px 10px",
+          borderRadius: 999,
+          fontWeight: 950,
+          fontSize: 13,
+          border: "1px solid rgba(245, 158, 11, .45)",
+          background: "rgba(245, 158, 11, .14)",
+        }}
+        title="Annonces Premium"
+      >
+        {premiumCount} premium ⭐
+      </span>
+    )}
+  </div>
+)}
       {loading && <p>Chargement…</p>}
 
       {errorMsg && (
@@ -117,13 +168,13 @@ export default function CityPage() {
         </div>
       )}
 
-      {!loading && !errorMsg && items.length === 0 && (
+      {!loading && !errorMsg && sortedItems.length === 0 && (
         <p style={{ opacity: 0.85, fontWeight: 700 }}>Aucune annonce pour le moment dans cette ville.</p>
       )}
 
-      {!loading && !errorMsg && items.length > 0 && (
+      {!loading && !errorMsg && sortedItems.length > 0 && (
         <div className="bl-grid" style={{ marginTop: 12, overflow: "visible" }}>
-          {items.map((l) => {
+          {sortedItems.map((l) => {
             const premium = isPremiumActive(l);
             const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
             const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
