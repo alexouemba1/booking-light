@@ -6,7 +6,7 @@ import Link from "next/link";
 import { publicListingImageUrl } from "@/lib/storage";
 
 
-console.log("TEST VERCEL DEPLOY");
+
 
 type ListingHome = {
   id: string;
