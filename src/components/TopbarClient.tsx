@@ -254,6 +254,9 @@ export default function TopbarClient() {
             <Link className="bl-pill" href="/my-listings">
               Mes annonces
             </Link>
+            <Link className="bl-pill" href="/my-favorites">
+             ❤️ Mes favoris
+            </Link>
             <Link className="bl-pill" href="/my-bookings">
               Mes réservations
             </Link>

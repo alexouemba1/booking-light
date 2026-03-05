@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { publicListingImageUrl } from "@/lib/storage";
 
+
 type ListingHome = {
   id: string;
   title: string;
@@ -93,6 +94,24 @@ function sortHomeListings(items: ListingHome[]) {
 }
 
 export default function HomePage() {
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const favSet = useMemo(() => new Set(favorites), [favorites]);
+
+   const toggleFavorite = (id: string) => {
+  const key = "lb:favorites";
+
+  let updated = [...favorites];
+
+  if (updated.includes(id)) {
+    updated = updated.filter((x) => x !== id);
+  } else {
+    updated.push(id);
+  }
+
+  setFavorites(updated);
+  localStorage.setItem(key, JSON.stringify(updated));
+};
+
   const [items, setItems] = useState<ListingHome[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -110,6 +129,16 @@ export default function HomePage() {
   const [mapTitle, setMapTitle] = useState("Carte (aperçu)");
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+
+  useEffect(() => {
+  const key = "lb:favorites";
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    try {
+      setFavorites(JSON.parse(stored));
+    } catch {}
+  }
+}, []);
 
   const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number }>({
     lat: 48.8566,
@@ -706,6 +735,9 @@ useEffect(() => {
          }}
           >
             {sortedItems.map((l) => {
+
+            const viewers = Math.floor(Math.random() * 12) + 3; 
+
               const premium = isPremiumActive(l);
               const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
               const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
@@ -757,6 +789,33 @@ useEffect(() => {
                         Premium ⭐
                       </div>
                     )}
+                    <div
+                        title="Ajouter aux favoris"
+                        style={{
+                        position: "absolute",
+                        right: 10,
+                        top: 10,
+                        zIndex: 6,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 999,
+                        display: "grid",
+                        placeItems: "center",
+                        border: "1px solid rgba(0,0,0,.12)",
+                        background: "rgba(255,255,255,.85)",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        userSelect: "none",
+                    }}
+                        onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(l.id); // évite d’ouvrir l’annonce quand tu cliques le coeur
+                        
+                    }}
+                    >
+                      {favSet.has(l.id) ? "❤️" : "🤍"}
+                   </div>
 
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -811,11 +870,29 @@ useEffect(() => {
                     {l.rating_avg != null && l.rating_count != null && l.rating_count > 0 ? (
                     <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800 }}>
                     ⭐ {Number(l.rating_avg).toFixed(1)} ({l.rating_count} avis)
+                       {Number(l.rating_avg) >= 4.5 && " ⭐ Bien noté"}
                     </div>
                     ) : (
-                    <div style={{ marginTop: 6, fontSize: 13, opacity: 0.55 }}>
-                    Aucun avis
-                    </div>
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span
+                  style={{
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,0,0,.10)",
+                  background: "rgba(47,107,255,.10)",
+                  fontWeight: 900,
+                  fontSize: 12,
+                  }}
+                 >
+                🆕 Nouveau
+                </span>
+                <div style={{ marginTop: 4, fontSize: 12, opacity: 0.7 }}>
+                👀 {viewers} personnes regardent
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.78 }}>
+                 Soyez le premier à réserver
+               </span>
+               </div>
                     )}
                     {/* ✅ petit texte premium discret */}
                     {premium && (
