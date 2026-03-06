@@ -701,7 +701,7 @@ useEffect(() => {
 </section>
 <section style={{ marginTop: 30 }}>
   <h3 style={{ fontWeight: 900 }}>
-    Pourquoi publier votre logement sur Booking-Light ?
+    Pourquoi publier votre logement sur Lightbooker ?
   </h3>
 
   <ul style={{ marginTop: 14, paddingLeft: 20, lineHeight: 1.7 }}>
