@@ -244,12 +244,48 @@ useEffect(() => {
 
   return (
     <main className="bl-container">
+     <div
+  style={{
+    background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+    color: "white",
+    padding: "70px 20px",
+    borderRadius: 18,
+   boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+   margin: "40px auto",
+    maxWidth: 1200,
+    overflow: "hidden",
+  }}
+>
+  <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <h1
+      style={{
+        fontSize: "42px",
+        fontWeight: 800,
+        lineHeight: 1.15,
+        marginBottom: 10,
+      }}
+    >
+      Trouvez votre prochain logement partout dans le monde
+    </h1>
+
+    <p
+      style={{
+        fontSize: "18px",
+        opacity: 0.9,
+        maxWidth: 650,
+        margin: 0,
+      }}
+    >
+      Publiez gratuitement votre logement. Réservez en toute sécurité. Paiement sécurisé et messagerie intégrée.
+    </p>
+  </div>
+</div>
       <div className="bl-hero">
         <div className="bl-hero-title">
-          <h1 className="bl-h1">Louez partout dans le monde. Publiez gratuitement. Réservez en toute sécurité.</h1>
+         
 
-          <div className="bl-hero-meta">
-            {sortedItems.length} annonce{sortedItems.length > 1 ? "s" : ""} · {withPhoto} avec photo
+          <div className="bl-hero-meta" style={{ marginTop: 16 }}>
+           {sortedItems.length} logements disponibles • {withPhoto} avec photo
           </div>
         </div>
 
