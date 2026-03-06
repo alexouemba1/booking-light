@@ -5,9 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { publicListingImageUrl } from "@/lib/storage";
 
-
-
-
 type ListingHome = {
   id: string;
   title: string;
@@ -16,11 +13,9 @@ type ListingHome = {
   billing_unit: string;
   price_cents: number;
   cover_image_path: string | null;
-
-  // ✅ Premium (renvoyé par /api/search)
   is_premium?: boolean | null;
   premium_until?: string | null;
-    rating_avg?: number | null;
+  rating_avg?: number | null;
   rating_count?: number | null;
 };
 
@@ -58,7 +53,6 @@ async function geocodeCity(city: string): Promise<{ lat: number; lon: number } |
   if (!q) return null;
 
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return null;
 
@@ -73,14 +67,12 @@ async function geocodeCity(city: string): Promise<{ lat: number; lon: number } |
   return { lat, lon };
 }
 
-// ✅ Premium actif (UI)
 function isPremiumActive(l: ListingHome) {
   if (!l?.is_premium) return false;
-  if (!l?.premium_until) return true; // fallback
+  if (!l?.premium_until) return true;
   return new Date(l.premium_until).getTime() > Date.now();
 }
 
-// ✅ Tri UI “ceinture + bretelles” : premium actifs d’abord, puis premium_until desc
 function sortHomeListings(items: ListingHome[]) {
   return [...items].sort((a, b) => {
     const ap = isPremiumActive(a) ? 1 : 0;
@@ -91,7 +83,7 @@ function sortHomeListings(items: ListingHome[]) {
     const bUntil = b.premium_until ? new Date(b.premium_until).getTime() : 0;
     if (bUntil !== aUntil) return bUntil - aUntil;
 
-    return 0; // l’API a déjà fait le tri complet
+    return 0;
   });
 }
 
@@ -99,27 +91,26 @@ export default function HomePage() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
-   const toggleFavorite = (id: string) => {
-  const key = "lb:favorites";
+  const toggleFavorite = (id: string) => {
+    const key = "lb:favorites";
+    let updated = [...favorites];
 
-  let updated = [...favorites];
+    if (updated.includes(id)) {
+      updated = updated.filter((x) => x !== id);
+    } else {
+      updated.push(id);
+    }
 
-  if (updated.includes(id)) {
-    updated = updated.filter((x) => x !== id);
-  } else {
-    updated.push(id);
-  }
-
-  setFavorites(updated);
-  localStorage.setItem(key, JSON.stringify(updated));
-};
+    setFavorites(updated);
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
 
   const [items, setItems] = useState<ListingHome[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [didSearch, setDidSearch] = useState(false);
-   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -132,24 +123,22 @@ export default function HomePage() {
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  useEffect(() => {
-  const key = "lb:favorites";
-  const stored = localStorage.getItem(key);
-  if (stored) {
-    try {
-      setFavorites(JSON.parse(stored));
-    } catch {}
-  }
-}, []);
-
   const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number }>({
     lat: 48.8566,
     lon: 2.3522,
   });
 
-  const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
+  useEffect(() => {
+    const key = "lb:favorites";
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        setFavorites(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
 
-  // ✅ items triés côté UI
+  const mapSrc = useMemo(() => osmEmbedUrl(mapCenter.lat, mapCenter.lon), [mapCenter.lat, mapCenter.lon]);
   const sortedItems = useMemo(() => sortHomeListings(items), [items]);
 
   async function search(next?: { city?: string; startDate?: string; endDate?: string; guests?: number }) {
@@ -171,7 +160,6 @@ export default function HomePage() {
       const json: any = await res.json();
 
       if (!res.ok) throw new Error(json?.error ?? "Erreur recherche");
-
       setItems(json?.items ?? []);
     } catch (e) {
       setErrorMsg(getErrorMessage(e));
@@ -185,14 +173,16 @@ export default function HomePage() {
     search({ city: "", startDate: "", endDate: "", guests: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-useEffect(() => {
-  if (!didSearch) return;
-  if (loading) return;
 
-  requestAnimationFrame(() => {
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}, [didSearch, loading, errorMsg, items.length]);
+  useEffect(() => {
+    if (!didSearch) return;
+    if (loading) return;
+
+    requestAnimationFrame(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [didSearch, loading, errorMsg, items.length]);
+
   async function updateMapForCity(cityValue: string) {
     const c = cityValue.trim();
     setMapError(null);
@@ -221,11 +211,11 @@ useEffect(() => {
     }
   }
 
- async function onSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  setDidSearch(true);
-  await Promise.all([search(), updateMapForCity(city)]);
-}
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setDidSearch(true);
+    await Promise.all([search(), updateMapForCity(city)]);
+  }
 
   function onReset() {
     setDidSearch(false);
@@ -244,55 +234,54 @@ useEffect(() => {
 
   return (
     <main className="bl-container">
-     <div
-  style={{
-    background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-    color: "white",
-    padding: "70px 20px",
-    borderRadius: 18,
-   boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-   margin: "40px auto",
-    maxWidth: 1200,
-    overflow: "hidden",
-  }}
->
-  <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-    <h1
-      style={{
-        fontSize: "42px",
-        fontWeight: 800,
-        lineHeight: 1.15,
-        marginBottom: 10,
-      }}
-    >
-      Trouvez votre prochain logement partout dans le monde
-    </h1>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+          color: "white",
+          padding: "70px 20px",
+          borderRadius: 18,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+          margin: "40px auto",
+          maxWidth: 1200,
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <h1
+            style={{
+              fontSize: "42px",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              marginBottom: 10,
+            }}
+          >
+            Trouvez votre prochain logement partout dans le monde
+          </h1>
 
-    <p
-      style={{
-        fontSize: "18px",
-        opacity: 0.9,
-        maxWidth: 650,
-        margin: 0,
-      }}
-    >
-      Publiez gratuitement votre logement. Réservez en toute sécurité. Paiement sécurisé et messagerie intégrée.
-    </p>
-  </div>
-</div>
+          <p
+            style={{
+              fontSize: "18px",
+              opacity: 0.9,
+              maxWidth: 650,
+              margin: 0,
+            }}
+          >
+            Publiez gratuitement votre logement. Réservez en toute sécurité. Paiement sécurisé et messagerie intégrée.
+          </p>
+        </div>
+      </div>
+
       <div className="bl-hero">
         <div className="bl-hero-title">
-         
-
           <div className="bl-hero-meta" style={{ marginTop: 16 }}>
-           {sortedItems.length} logements disponibles • {withPhoto} avec photo
+            {sortedItems.length} logements disponibles • {withPhoto} avec photo
           </div>
         </div>
 
         <div className="bl-hero-card">
           <div className="bl-hero-card-title">Réserve en toute simplicité, publie gratuitement</div>
+
           <div className="bl-hero-card-sub">
-            {/* ✨ Premium Trust Badge (animation VISIBLE) */}
             <div
               className="bl-trust-premium"
               style={{
@@ -381,82 +370,8 @@ useEffect(() => {
                   Astuce : privilégie les annonces avec photo + profil complet.
                 </div>
               </div>
-
-              <style jsx global>{`
-                .bl-trust-premium {
-                  animation: bl-trust-pulse 2.8s ease-in-out infinite;
-                  transform-origin: center;
-                }
-                .bl-trust-glow {
-                  background-size: 140% 140%;
-                  animation: bl-glow-move 3.2s ease-in-out infinite;
-                  will-change: transform, background-position, opacity;
-                }
-                .bl-trust-chip {
-                  animation: bl-chip-breathe 2.2s ease-in-out infinite;
-                }
-
-                /* ✅ Premium card look (sans casser la grille) */
-                .bl-card-premium {
-                  position: relative;
-                  overflow: hidden;
-                }
-                .bl-card-premium::before {
-                  content: "";
-                  position: absolute;
-                  inset: -2px;
-                  background: radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.22), transparent 55%),
-                    radial-gradient(circle at 80% 30%, rgba(59, 130, 246, 0.12), transparent 58%);
-                  filter: blur(10px);
-                  opacity: 0.9;
-                  pointer-events: none;
-                }
-                .bl-card-premium > * {
-                  position: relative;
-                  z-index: 1;
-                }
-
-                @keyframes bl-trust-pulse {
-                  0% {
-                    transform: translateY(0) scale(1);
-                  }
-                  50% {
-                    transform: translateY(-2px) scale(1.01);
-                  }
-                  100% {
-                    transform: translateY(0) scale(1);
-                  }
-                }
-                @keyframes bl-glow-move {
-                  0% {
-                    transform: translateY(0) rotate(0deg);
-                    background-position: 0% 0%;
-                    opacity: 0.85;
-                  }
-                  50% {
-                    transform: translateY(-10px) rotate(1.5deg);
-                    background-position: 100% 50%;
-                    opacity: 1;
-                  }
-                  100% {
-                    transform: translateY(0) rotate(0deg);
-                    background-position: 0% 0%;
-                    opacity: 0.85;
-                  }
-                }
-                @keyframes bl-chip-breathe {
-                  0% {
-                    transform: scale(1);
-                  }
-                  50% {
-                    transform: scale(1.04);
-                  }
-                  100% {
-                    transform: scale(1);
-                  }
-                }
-              `}</style>
             </div>
+
             Une plateforme de mise en relation avec messagerie interne et paiement sécurisé. La commission éventuelle est affichée avant
             validation de la réservation.
           </div>
@@ -484,7 +399,6 @@ useEffect(() => {
                 <input className="bl-input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
 
-              {/* Voyageurs */}
               <div>
                 <label className="bl-label">Voyageurs</label>
 
@@ -623,128 +537,146 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ✅ Bloc SEO (placé juste après le HERO) */}
-      <section style={{ marginTop: 40 }}>
-        <h2 style={{ fontWeight: 900 }}>Louer un logement en toute simplicité</h2>
+      {/* ✅ Bloc SEO dépliant */}
+      <section style={{ marginTop: 24 }}>
+        <details
+          style={{
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 18,
+            padding: "16px 18px",
+          }}
+        >
+          <summary
+            style={{
+              fontWeight: 900,
+              fontSize: 18,
+              color: "#1e40af",
+              cursor: "pointer",
+              listStyle: "none",
+            }}
+          >
+            ℹ️ En savoir plus sur la location sur Lightbooker
+          </summary>
 
-        <p style={{ marginTop: 12, opacity: 0.9 }}>
-          Booking-Light est une plateforme de location entre particuliers. Trouvez un appartement, une maison ou un studio pour une nuit,
-          une semaine ou un mois. Réservation en ligne, paiement sécurisé, messagerie interne et commission transparente.
-        </p>
+          <div style={{ marginTop: 18 }}>
+            <h2 style={{ fontWeight: 900 }}>Louer un logement en toute simplicité</h2>
 
-        <p style={{ marginTop: 12, opacity: 0.9 }}>
-          Publiez gratuitement votre annonce et recevez des réservations. Locations populaires : Paris, Marseille, Toulouse, Martinique et
-          Guyane.
-        </p>
-<div
-  style={{
-    marginTop: 18,
-    padding: "20px 22px",
-    borderRadius: 20,
-    border: "1px solid rgba(37, 99, 235, .35)",
-    background: "linear-gradient(180deg, rgba(37, 99, 235, .18), rgba(37, 99, 235, .05))",
-    boxShadow: "0 18px 45px rgba(37, 99, 235, .12)",
-    backdropFilter: "blur(2px)",
-  }}
->
-  <h3
-    style={{
-      margin: 0,
-      fontWeight: 900,
-      color: "#1e40af",
-      fontSize: 19,
-    }}
-  >
-    Vous êtes propriétaire ? Publiez en toute confiance.
-  </h3>
+            <p style={{ marginTop: 12, opacity: 0.9 }}>
+              Lightbooker est une plateforme de location entre particuliers. Trouvez un appartement, une maison ou un studio pour une nuit,
+              une semaine ou un mois. Réservation en ligne, paiement sécurisé, messagerie interne et commission transparente.
+            </p>
 
-  <p style={{ marginTop: 12, opacity: 0.95, lineHeight: 1.6 }}>
-    Louez votre appartement, maison ou studio en courte ou moyenne durée. 
-    Créez votre annonce, ajoutez vos photos, fixez vos tarifs et gérez vos disponibilités simplement.
-  </p>
+            <p style={{ marginTop: 12, opacity: 0.9 }}>
+              Publiez gratuitement votre annonce et recevez des réservations. Locations populaires : Paris, Marseille, Toulouse, Martinique
+              et Guyane.
+            </p>
 
-  <ul style={{ marginTop: 12, paddingLeft: 18, lineHeight: 1.6 }}>
-    <li>Messagerie intégrée pour échanger facilement avec les voyageurs</li>
-    <li>Réservation structurée et commission transparente</li>
-    <li>Plateforme conçue pour la France, l’Europe, l’Afrique et l’international</li>
-  </ul>
+            <div
+              style={{
+                marginTop: 18,
+                padding: "20px 22px",
+                borderRadius: 20,
+                border: "1px solid rgba(37, 99, 235, .35)",
+                background: "linear-gradient(180deg, rgba(37, 99, 235, .18), rgba(37, 99, 235, .05))",
+                boxShadow: "0 18px 45px rgba(37, 99, 235, .12)",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontWeight: 900,
+                  color: "#1e40af",
+                  fontSize: 19,
+                }}
+              >
+                Vous êtes propriétaire ? Publiez en toute confiance.
+              </h3>
 
-  <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
-    Vous gardez le contrôle total sur votre calendrier, vos conditions et vos prix — 
-    le tout avec une expérience moderne, claire et professionnelle.
-  </p>
+              <p style={{ marginTop: 12, opacity: 0.95, lineHeight: 1.6 }}>
+                Louez votre appartement, maison ou studio en courte ou moyenne durée. Créez votre annonce, ajoutez vos photos, fixez vos
+                tarifs et gérez vos disponibilités simplement.
+              </p>
 
-  <section style={{ marginTop: 36 }}>
-  <div
-    style={{
-      padding: "20px 22px",
-      borderRadius: 18,
-      border: "1px solid rgba(0,0,0,.06)",
-      background: "#ffffff",
-      boxShadow: "0 8px 28px rgba(0,0,0,.04)",
-    }}
-  >
-    <h3 style={{ margin: 0, fontWeight: 900 }}>
-      Une plateforme pensée pour les propriétaires exigeants
-    </h3>
+              <ul style={{ marginTop: 12, paddingLeft: 18, lineHeight: 1.6 }}>
+                <li>Messagerie intégrée pour échanger facilement avec les voyageurs</li>
+                <li>Réservation structurée et commission transparente</li>
+                <li>Plateforme conçue pour la France, l’Europe, l’Afrique et l’international</li>
+              </ul>
 
-    <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
-      Publication simple, gestion claire des réservations, visibilité internationale.
-      Booking-Light a été conçu pour offrir une expérience moderne et structurée,
-      adaptée aux propriétaires qui souhaitent louer efficacement.
-    </p>
+              <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
+                Vous gardez le contrôle total sur votre calendrier, vos conditions et vos prix — le tout avec une expérience moderne, claire
+                et professionnelle.
+              </p>
 
-    <p style={{ marginTop: 10, opacity: 0.85 }}>
-      Vous contrôlez votre calendrier, vos tarifs et vos conditions — sans complexité inutile.
-    </p>
-  </div>
-</section>
-<section style={{ marginTop: 30 }}>
-  <h3 style={{ fontWeight: 900 }}>
-    Pourquoi publier votre logement sur Lightbooker ?
-  </h3>
+              <div
+                style={{
+                  marginTop: 24,
+                  padding: "20px 22px",
+                  borderRadius: 18,
+                  border: "1px solid rgba(0,0,0,.06)",
+                  background: "#ffffff",
+                  boxShadow: "0 8px 28px rgba(0,0,0,.04)",
+                }}
+              >
+                <h3 style={{ margin: 0, fontWeight: 900 }}>Une plateforme pensée pour les propriétaires exigeants</h3>
 
-  <ul style={{ marginTop: 14, paddingLeft: 20, lineHeight: 1.7 }}>
-    <li>Visibilité en France, en Europe et à l’international</li>
-    <li>Mise en avant Premium pour apparaître en priorité</li>
-    <li>Processus de réservation structuré et transparent</li>
-    <li>Messagerie intégrée pour dialoguer facilement</li>
-    <li>Interface simple, rapide et moderne</li>
-  </ul>
-</section>
-<section
-  style={{
-    marginTop: 30,
-    padding: "18px 22px",
-    borderRadius: 18,
-    background: "linear-gradient(180deg, rgba(245,158,11,.15), rgba(255,255,255,1))",
-    border: "1px solid rgba(245,158,11,.35)",
-  }}
->
-  <h3 style={{ margin: 0, fontWeight: 900 }}>
-    Option Premium ✨
-  </h3>
+                <p style={{ marginTop: 12, opacity: 0.9, lineHeight: 1.6 }}>
+                  Publication simple, gestion claire des réservations, visibilité internationale. Lightbooker a été conçu pour offrir une
+                  expérience moderne et structurée, adaptée aux propriétaires qui souhaitent louer efficacement.
+                </p>
 
-  <p style={{ marginTop: 10, lineHeight: 1.6 }}>
-    Augmentez la visibilité de votre annonce en activant l’option Premium.
-    Votre logement apparaît en priorité et bénéficie d’une mise en avant distinctive.
-  </p>
+                <p style={{ marginTop: 10, opacity: 0.85 }}>
+                  Vous contrôlez votre calendrier, vos tarifs et vos conditions — sans complexité inutile.
+                </p>
+              </div>
 
-  <p style={{ marginTop: 8, opacity: 0.85 }}>
-    Idéal pour maximiser vos réservations lors des périodes clés.
-  </p>
-</section>
-  </div>
-        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link className="bl-btn bl-btn-primary" href="/publish">
-            Publier une annonce
-          </Link>
-          <Link className="bl-btn" href="/villes">
-            Voir toutes les villes
-          </Link>
-        </div>
+              <div style={{ marginTop: 30 }}>
+                <h3 style={{ fontWeight: 900 }}>Pourquoi publier votre logement sur Lightbooker ?</h3>
+
+                <ul style={{ marginTop: 14, paddingLeft: 20, lineHeight: 1.7 }}>
+                  <li>Visibilité en France, en Europe et à l’international</li>
+                  <li>Mise en avant Premium pour apparaître en priorité</li>
+                  <li>Processus de réservation structuré et transparent</li>
+                  <li>Messagerie intégrée pour dialoguer facilement</li>
+                  <li>Interface simple, rapide et moderne</li>
+                </ul>
+              </div>
+
+              <section
+                style={{
+                  marginTop: 30,
+                  padding: "18px 22px",
+                  borderRadius: 18,
+                  background: "linear-gradient(180deg, rgba(245,158,11,.15), rgba(255,255,255,1))",
+                  border: "1px solid rgba(245,158,11,.35)",
+                }}
+              >
+                <h3 style={{ margin: 0, fontWeight: 900 }}>Option Premium ✨</h3>
+
+                <p style={{ marginTop: 10, lineHeight: 1.6 }}>
+                  Augmentez la visibilité de votre annonce en activant l’option Premium. Votre logement apparaît en priorité et bénéficie
+                  d’une mise en avant distinctive.
+                </p>
+
+                <p style={{ marginTop: 8, opacity: 0.85 }}>Idéal pour maximiser vos réservations lors des périodes clés.</p>
+              </section>
+            </div>
+
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link className="bl-btn bl-btn-primary" href="/publish">
+                Publier une annonce
+              </Link>
+              <Link className="bl-btn" href="/villes">
+                Voir toutes les villes
+              </Link>
+            </div>
+          </div>
+        </details>
       </section>
+
       <div ref={resultsRef}></div>
+
       <section style={{ marginTop: 18 }}>
         {loading && <p>Chargement…</p>}
 
@@ -753,29 +685,29 @@ useEffect(() => {
             <strong>Erreur :</strong> {errorMsg}
           </div>
         )}
-     {!loading && !errorMsg && sortedItems.length === 0 && (
-  <p
-  key={`${city}-${startDate}-${endDate}-${guests}-${sortedItems.length}-${loading}`}
-  style={{
-    animation: "fadeInUp 0.5s ease-out forwards",
-  }}
->
-  Aucune annonce{city ? ` à ${city}` : ""} pour ces dates.
-</p>
-)}
+
+        {!loading && !errorMsg && sortedItems.length === 0 && (
+          <p
+            key={`${city}-${startDate}-${endDate}-${guests}-${sortedItems.length}-${loading}`}
+            style={{
+              animation: "fadeInUp 0.5s ease-out forwards",
+            }}
+          >
+            Aucune annonce{city ? ` à ${city}` : ""} pour ces dates.
+          </p>
+        )}
+
         {!loading && !errorMsg && sortedItems.length > 0 && (
-         <div
-          className="bl-grid"
-          style={{
-          overflow: "visible",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 18,
-         }}
+          <div
+            className="bl-grid"
+            style={{
+              overflow: "visible",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 18,
+            }}
           >
             {sortedItems.map((l) => {
-
-            const viewers = Math.floor(Math.random() * 12) + 3; 
-
+              const viewers = Math.floor(Math.random() * 12) + 3;
               const premium = isPremiumActive(l);
               const price = (l.price_cents / 100).toFixed(2).replace(".", ",");
               const img = l.cover_image_path ? publicListingImageUrl(l.cover_image_path) : null;
@@ -804,7 +736,6 @@ useEffect(() => {
                   }}
                 >
                   <div className="bl-card-media" style={{ position: "relative", height: premium ? 260 : 190, overflow: "hidden" }}>
-                    {/* ✅ Badge Premium */}
                     {premium && (
                       <div
                         style={{
@@ -827,9 +758,10 @@ useEffect(() => {
                         Premium ⭐
                       </div>
                     )}
+
                     <div
-                        title="Ajouter aux favoris"
-                        style={{
+                      title="Ajouter aux favoris"
+                      style={{
                         position: "absolute",
                         right: 10,
                         top: 10,
@@ -844,16 +776,15 @@ useEffect(() => {
                         cursor: "pointer",
                         fontSize: 18,
                         userSelect: "none",
-                    }}
-                        onClick={(e) => {
+                      }}
+                      onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        toggleFavorite(l.id); // évite d’ouvrir l’annonce quand tu cliques le coeur
-                        
-                    }}
+                        toggleFavorite(l.id);
+                      }}
                     >
                       {favSet.has(l.id) ? "❤️" : "🤍"}
-                   </div>
+                    </div>
 
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -905,34 +836,33 @@ useEffect(() => {
                     <div className="bl-card-meta" style={{ marginTop: 6 }}>
                       {l.city ?? "Ville ?"} · {l.kind ?? "Type ?"}
                     </div>
+
                     {l.rating_avg != null && l.rating_count != null && l.rating_count > 0 ? (
-                    <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800 }}>
-                    ⭐ {Number(l.rating_avg).toFixed(1)} ({l.rating_count} avis)
-                       {Number(l.rating_avg) >= 4.5 && " ⭐ Bien noté"}
-                    </div>
+                      <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800 }}>
+                        ⭐ {Number(l.rating_avg).toFixed(1)} ({l.rating_count} avis)
+                        {Number(l.rating_avg) >= 4.5 && " ⭐ Bien noté"}
+                      </div>
                     ) : (
-                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span
-                  style={{
-                  padding: "3px 8px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(0,0,0,.10)",
-                  background: "rgba(47,107,255,.10)",
-                  fontWeight: 900,
-                  fontSize: 12,
-                  }}
-                 >
-                🆕 Nouveau
-                </span>
-                <div style={{ marginTop: 4, fontSize: 12, opacity: 0.7 }}>
-                👀 {viewers} personnes regardent
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.78 }}>
-                 Soyez le premier à réserver
-               </span>
-               </div>
+                      <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            border: "1px solid rgba(0,0,0,.10)",
+                            background: "rgba(47,107,255,.10)",
+                            fontWeight: 900,
+                            fontSize: 12,
+                          }}
+                        >
+                          🆕 Nouveau
+                        </span>
+
+                        <div style={{ marginTop: 4, fontSize: 12, opacity: 0.7 }}>👀 {viewers} personnes regardent</div>
+
+                        <span style={{ fontSize: 13, fontWeight: 700, opacity: 0.78 }}>Soyez le premier à réserver</span>
+                      </div>
                     )}
-                    {/* ✅ petit texte premium discret */}
+
                     {premium && (
                       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
                         Mise en avant Premium · meilleure visibilité
@@ -950,7 +880,6 @@ useEffect(() => {
         )}
       </section>
 
-      {/* 🔥 Bloc SEO maillage interne */}
       <section style={{ marginTop: 40 }}>
         <h2 style={{ fontWeight: 900 }}>Locations populaires</h2>
 
@@ -962,6 +891,102 @@ useEffect(() => {
           <Link href="/location-guyane">Location en Guyane</Link>
         </div>
       </section>
+
+      <style jsx global>{`
+        .bl-trust-premium {
+          animation: bl-trust-pulse 2.8s ease-in-out infinite;
+          transform-origin: center;
+        }
+
+        .bl-trust-glow {
+          background-size: 140% 140%;
+          animation: bl-glow-move 3.2s ease-in-out infinite;
+          will-change: transform, background-position, opacity;
+        }
+
+        .bl-trust-chip {
+          animation: bl-chip-breathe 2.2s ease-in-out infinite;
+        }
+
+        .bl-card-premium {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .bl-card-premium::before {
+          content: "";
+          position: absolute;
+          inset: -2px;
+          background:
+            radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.22), transparent 55%),
+            radial-gradient(circle at 80% 30%, rgba(59, 130, 246, 0.12), transparent 58%);
+          filter: blur(10px);
+          opacity: 0.9;
+          pointer-events: none;
+        }
+
+        .bl-card-premium > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        summary::-webkit-details-marker {
+          display: none;
+        }
+
+        @keyframes bl-trust-pulse {
+          0% {
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            transform: translateY(-2px) scale(1.01);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes bl-glow-move {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            background-position: 0% 0%;
+            opacity: 0.85;
+          }
+          50% {
+            transform: translateY(-10px) rotate(1.5deg);
+            background-position: 100% 50%;
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(0) rotate(0deg);
+            background-position: 0% 0%;
+            opacity: 0.85;
+          }
+        }
+
+        @keyframes bl-chip-breathe {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.04);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </main>
   );
 }
